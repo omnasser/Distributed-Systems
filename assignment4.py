@@ -125,10 +125,11 @@ class viewHandler(Resource):
                     message='Error in DELETE'
                 ), 404)
 api.add_resource(viewHandler, '/key-value-store-view') 
+
+
 #~~~~~~~~~~~~~~~~~~Key-Value operations endpoint~~~~~~~~~~~~~~~~~~~
 
 #Need to keep causal consistency using causal metadata
-#Vector clocks are recommended as causal metadata
 class kvsHandler(Resource):
     SOCKET_ADDRESS = os.environ.get('SOCKET_ADDRESS')
     #@app.route('/key-value-store', methods=['PUT'])
@@ -234,38 +235,6 @@ class kvsHandler(Resource):
 api.add_resource(kvsHandler, '/key-value-store/', '/key-value-store/<key>')
 app.run(host=socket.gethostbyname(socket.gethostname()),port=8085,debug=True)
 =======
-#assignment3.py
-#Group: rsaefong@ucsc.edu, omnasser@ucsc.edu, dajli@ucsc.edu, rmjaureg@ucsc.edu
-
-from flask import Flask
-from flask import request, jsonify, make_response
-from flask_restful import Resource, Api
-import os, requests, socket
-from requests.exceptions import Timeout
-# from flask import jsonify
-
-app = Flask(__name__)
-api = Api(app)
-KeyValDict = dict() #declaring dictionary
-eventcounter = 0 #Counter incremented every PUT and DELETE
-replicas = [os.environ['VIEW']]#.split(',')] #List of replicas
-#Vector Clock array of event integers
-#Gets total count of replicas in replicas
-replcount = 0
-for sockt in replicas:
-    replcount = replcount + 1
-VC = [replcount]
-BigDict = dict()
-VCFROM = [replcount]
-#Initializes VC's to 0
-for replcount in replicas:
-    VC[replcount] = 0
-    VCFROM[replcount] = 0
-SOCKET_ADDRESS = os.environ.get('SOCKET_ADDRESS')
-#FORWARDING_ADDRESS = os.environ.get('FORWARDING_ADDRESS')
-headers = "Content-Type: application/json"
-#Want to use dict which is Python HashTable
-#want to check if something in dictionary (if key in dict)
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~View Operations Endpoint~~~~~~~~~~~~~~~~~~~~~~~~
 class viewHandler(Resource):
@@ -371,10 +340,15 @@ class viewHandler(Resource):
                     message='Error in DELETE'
                 ), 404)
 api.add_resource(viewHandler, '/key-value-store-view') 
-    #~~~~~~~~~~~~~~~~~~Key-Value operations endpoint~~~~~~~~~~~~~~~~~~~
 
-    #Need to keep causal consistency using causal metadata
-    #Vector clocks are recommended as causal metadata
+
+#**************************************************************************************************************#
+
+
+#~~~~~~~~~~~~~~~~~~Key-Value operations endpoint~~~~~~~~~~~~~~~~~~~
+
+#Need to keep causal consistency using causal metadata
+#Vector clocks are recommended as causal metadata
 class kvsHandler(Resource):
     SOCKET_ADDRESS = os.environ.get('SOCKET_ADDRESS')
 
@@ -382,13 +356,13 @@ class kvsHandler(Resource):
 
     def put(self, key):
         value = requests.get_json('value')
-        # meta == vector clock
+        # meta is the vector clock vector clock
         meta = requests.get_json('causal-metadata')
 
         store_flag = CompareClocks(meta)
 
         if(store_flag == -1):
-            # we queue the vale
+            # we queue the vale here
         else:
             if value is None:
                 return jsonify(
@@ -397,9 +371,7 @@ class kvsHandler(Resource):
                 ),400
             KeyValDict[str(key)] = value
 
-    
-
-        # if we quque do we broadcast or do we wait for the key to be added to the dictonary?
+        # do we quque do we broadcast or do we wait for the key to be added to the dictonary?
 
         # gettting current replica index
         for sockt in replicas:
@@ -408,21 +380,12 @@ class kvsHandler(Resource):
                 # incremenign vector clock
                 VC[sockt] = VC[sockt] + 1
 
-            
-
-                7 9  8
-                0 1  3
-
-
-
-
-
-
-
+        # loading meta data
         BigDict[str(value)] = value
         BigDict[str(meta)] = meta
         BigDict[str(replica)] = found_num
 
+        #broadcsting to other replicas on end point "to-replica'"
         for sockt in replicas:
             if SOCKET_ADDRESS is not replicas[sockt]
                 req = requests.put('http://'+replicas[sockt]+'/to-replica/' + key, json=BigDict, timeout = 10)
@@ -440,15 +403,6 @@ class kvsHandler(Resource):
         return 0
 
 
-
-    # recived message from replica
-    # decode and get the meta data
-    # comapre the vectort clock(meta)
-
-
-
-
-
     @app.route('/to-replica/<key>', methods=['PUT'])
 
     def put(self, key):
@@ -456,48 +410,20 @@ class kvsHandler(Resource):
         meta = requests.get_json('meta')
         replica = requests.get_json('replica')
 
-
-
         store_flag = CompareClocks(meta)
 
         if(store_flag == -1):
             # we queue the vale
         else:
-            if value is None:
                 KeyValDict[str(key)] = value
 
             # increment vector clcok of the replica that got the request from the cleint
             VC[replica] = VC[replica] + 1
 
-            for rep in replicas
-                if replica = replicas[rep]
-                    VC[rep] = VC[rep] + 1
-
-
-
-        value = request.get_json
-        value = value.get('value')
-        tempVC = request.get_json
-        tempVC = value.get('VC')
-
-        arrived_clock = tempVC.split(',')
-
-
-        # check the queue for paet request and compare that vector clock with arrived clock 
-
-        flag = 0
-
-        for rep in replicas:
-            if arrived_clock[rep] > VC[rep]
-                flag = flag + 1
-
-        if flag = 1
-            KeyValDict[str(key)] = value
-            #update vector clock
-        else
-
-            new_value = value + ";" + tempVC
-            BigDict[str(key)] = new_value
+            # for rep in replicas
+            #     if replica = replicas[rep]
+            #         VC[rep] = VC[rep] + 1
+            
 
     def CheckVector():
         flag_loop = 0
@@ -518,38 +444,11 @@ class kvsHandler(Resource):
                         for sockt in replicas
                             if SOCKET_ADDRESS = replicas[sockt]
                                 VC[sockt] = VC[sockt] + 1
-
-
-
-
         else:
             return
 
-    #recive meg from replica
-    # decode and get vecotor clock and key-value
-    # compare vecotor clocks / increase own vecotor clock 
-    # if less
-    #   add value to dic
-    # else 
-    #   queue
-    # send okay
 
-
-
-@app.route('/key-value-store/<key>', methods=['PUT'])
-
-
-
-
-
-
-
-
-
-
-
-
-
+#**************************************************************************************************************#
 
 
 
@@ -702,105 +601,3 @@ class kvsHandler(Resource):
 
 
 
-
-
-
-        #Get The FORWARDING ADDRESS to determine which container running
-        global eventcounter
-        value = request.get_json()
-        value = value.get('value')
-        metadat = request.get_json()
-        metadat = metadat.get('causal-metadata')
-        #enter the main container, else enter forwarding container
-        if SOCKET_ADDRESS is None:
-            #Need to check if there is no <value> given first
-            if value is None:
-                return make_response(jsonify(
-                    error='Value is missing',
-                    message='Error in PUT',
-                ),400)
-            if len(key) > 50:
-                return make_response(jsonify(
-                    error='Key is too long',
-                    message='Error in PUT',
-                ),400)
-            #Update Value of key here
-            # KeyValDict[key] = request.values.get('value')
-        for sockt in VC:
-            if VC[sockt] >= VCFROM[sockt]
-        for sockt in replicas
-            if SOCKET_ADDRESS = replicas[sockt]
-                VC[sockt] = VC[sockt] + 1
-        if key not in KeyValDict:
-            KeyValDict[str(key)] = value
-            eventcounter = eventcounter + 1
-            return make_response(jsonify({
-                'message' : 'Added successfully',
-                'causal-metadata' : 'V'+eventcounter
-            }), 201) #test script says this is 201
-        elif key in KeyValDict:
-            return make_response(jsonify({
-                'message' : 'Added successfully',
-                'causal-metadata' : 'V'+eventcounter
-            }), 201)
-            #only put if causally consistent
-        try:
-            value = request.get_json()
-            req = requests.put('http://'+SOCKET_ADDRESS+'/key-value-store/' + key, json=value, timeout = 10)
-            return req.json(),req.status_code
-
-        else:
-            return req.json(),req.status_code
-    #@app.route('/key-value-store', methods=['GET'])
-    def get(self, key):
-        if SOCKET_ADDRESS is None:
-            if key not in KeyValDict:
-                return make_response(jsonify(
-                    doesExist=False,
-                    error='Key does not exist',
-                    message='Error in GET'
-                ), 404)
-            elif key in KeyValDict:
-                value = KeyValDict[str(key)]
-                return make_response(jsonify({
-                    'message' : 'Retrieved successfully',
-                    'causal-metadata' : 'V'+eventcounter,
-                    'value' : value
-                }), 200)
-        try:
-            req = requests.get('http://'+SOCKET_ADDRESS+'/key-value-store/' + key)
-            return req.json(),req.status_code
-        except:
-            return make_response(jsonify(
-                error= 'Get request failed', 
-                message = 'Error in GET'
-            ), 503)
-
-    #@app.route('/key-value-store', methods=['DELETE'])
-    def delete(self, key):
-        global eventcounter
-        if SOCKET_ADDRESS is None:
-            if key not in KeyValDict:
-                return make_response(jsonify(
-                    doesExist=False,
-                    error='Key does not exist',
-                    message='Error in DELETE'
-                ), 404)
-            elif key in KeyValDict:
-                del KeyValDict[str(key)]
-                eventcounter = eventcounter + 1
-                return make_response(jsonify(
-                    doesExist=True,
-                    message='Deleted successfully',
-                ), 200)
-        try:
-            req = requests.delete('http://'+SOCKET_ADDRESS+'/key-value-store/' + key)
-            return req.json(),req.status_code
-        except:
-            return make_response(jsonify(
-                error= 'Put request failed', 
-                message = 'Error in DELETE'
-            ), 503)
-api.add_resource(kvsHandler, '/key-value-store/', '/key-value-store/<key>')
-app.run(host=socket.gethostbyname(socket.gethostname()),port=8085,debug=True)
->>>>>>> 7f4ff3ed54fbaac4b403d2eff4338672791dbffe
