@@ -1,0 +1,4 @@
+Our implementation for causal dependency tracking and detecting that a replica is down includes:
+An set of counters to detect changes in versions of the system whenever a PUT or DELETE is encountered.
+Vector Clocks
+For detecting if a replica is down we try to first detect down replicas by cycling through the replicas and seeing if there is a response. If there is not a response then we add it to the crashed replicas list. Then for each operation we ping the other replicas to see if the list of crashed replicas changed and edits the list based off the results. 
