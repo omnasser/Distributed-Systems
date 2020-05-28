@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 #assignment3.py
 #Group: rsaefong@ucsc.edu, omnasser@ucsc.edu, dajli@ucsc.edu, rmjaureg@ucsc.edu
 
@@ -12,6 +11,7 @@ from requests.exceptions import Timeout
 app = Flask(__name__)
 api = Api(app)
 KeyValDict = dict() #declaring dictionary
+VCDict = dict() #Declaring vector clock dictionary
 eventcounter = 0 #Counter incremented every PUT and DELETE
 replicas = [os.environ['VIEW']]#.split(',')] #List of replicas
 SOCKET_ADDRESS = os.environ.get('SOCKET_ADDRESS')
@@ -19,6 +19,10 @@ SOCKET_ADDRESS = os.environ.get('SOCKET_ADDRESS')
 headers = "Content-Type: application/json"
 #Want to use dict which is Python HashTable
 #want to check if something in dictionary (if key in dict)
+
+#sets each replica's VC to 0
+for sockt in replicas:
+    VCDict[str(sockt)] = 0
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~View Operations Endpoint~~~~~~~~~~~~~~~~~~~~~~~~
 class viewHandler(Resource):
@@ -234,7 +238,6 @@ class kvsHandler(Resource):
                     ), 503)
 api.add_resource(kvsHandler, '/key-value-store/', '/key-value-store/<key>')
 app.run(host=socket.gethostbyname(socket.gethostname()),port=8085,debug=True)
-=======
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~View Operations Endpoint~~~~~~~~~~~~~~~~~~~~~~~~
 class viewHandler(Resource):
@@ -361,8 +364,14 @@ class kvsHandler(Resource):
 
         store_flag = CompareClocks(meta)
 
+            #Check queue of replicas if empty
+            #
+            
+        if not VCDict:
+            
         if(store_flag == -1):
-            # we queue the vale here
+            # We queue the Value here
+            
         else:
             if value is None:
                 return jsonify(
@@ -371,13 +380,13 @@ class kvsHandler(Resource):
                 ),400
             KeyValDict[str(key)] = value
 
-        # do we quque do we broadcast or do we wait for the key to be added to the dictonary?
+        # do we queue do we broadcast or do we wait for the key to be added to the dictonary?
 
         # gettting current replica index
         for sockt in replicas:
-            if SOCKET_ADDRESS == replicas[sockt]
+            if SOCKET_ADDRESS == sockt
                 found_num= sockt
-                # incremenign vector clock
+                # incrementing vector clock
                 VC[sockt] = VC[sockt] + 1
 
         # loading meta data
@@ -387,7 +396,7 @@ class kvsHandler(Resource):
 
         #broadcsting to other replicas on end point "to-replica'"
         for sockt in replicas:
-            if SOCKET_ADDRESS is not replicas[sockt]
+            if SOCKET_ADDRESS is not sockt
                 req = requests.put('http://'+replicas[sockt]+'/to-replica/' + key, json=BigDict, timeout = 10)
 
 
@@ -397,9 +406,11 @@ class kvsHandler(Resource):
         int_clock_client = list(map_obj)
 
         #opposite
+        index = 0
         for replcount in replicas:
-            if int_clock_client[replcount] > VC[replcount]
-            return -1
+            if int_clock_client[index] > VCDict[replcount]
+                return -1
+            index = index + 1
         return 0
 
 
@@ -442,7 +453,7 @@ class kvsHandler(Resource):
                     if flag = 1
                         KeyValDict[str(key)] = value
                         for sockt in replicas
-                            if SOCKET_ADDRESS = replicas[sockt]
+                            if SOCKET_ADDRESS == sockt
                                 VC[sockt] = VC[sockt] + 1
         else:
             return
