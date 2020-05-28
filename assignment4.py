@@ -12,7 +12,8 @@ app = Flask(__name__)
 api = Api(app)
 KeyValDict = dict() #declaring dictionary
 VCDict = dict() #Declaring vector clock dictionary
-QDict = dict() #Declaring Queue dictonary
+Q_Dict = dict() #Declaring Queue dictonary
+BigDict = dict() #Declaring Send data dictionary
 eventcounter = 0 #Counter incremented every PUT and DELETE
 replicas = [os.environ['VIEW']]#.split(',')] #List of replicas
 SOCKET_ADDRESS = os.environ.get('SOCKET_ADDRESS')
@@ -132,8 +133,6 @@ class viewHandler(Resource):
 api.add_resource(viewHandler, '/key-value-store-view') 
 
 
-
-
 #~~~~~~~~~~~~~~~~~~Key-Value operations endpoint~~~~~~~~~~~~~~~~~~~
 
 #Need to keep causal consistency using causal metadata
@@ -142,8 +141,7 @@ class kvsHandler(Resource):
     SOCKET_ADDRESS = os.environ.get('SOCKET_ADDRESS')
 
     @app.route('/key-value-store/<key>', methods=['PUT'])
-
-    def CompareClocks(meta) 
+    def CompareClocks(self, meta):
         meta_list = meta.split(',')
         map_obj = map(int, meta_list)
         int_clock_client = list(map_obj)
@@ -151,62 +149,57 @@ class kvsHandler(Resource):
         #opposite
         index = 0
         for replcount in replicas:
-            if int_clock_client[index] > VCDict[replcount]
+            if int_clock_client[index] > VCDict[replcount]:
                 return -1
             index = index + 1
         return 0
 
-    def QueueCheckClient()
+    def QueueCheckClient(self):
         flag_loop = 1
         while(flag_loop is 1):
             flag_loop = 0
             for key in Q_Dict:
                 value = Q_Dict[key]
 
-                ////////////////////////////////////
+            #    ////////////////////////////////////
                 val = value.get_json('value')
                 val = value['value']
                 # meta is the vector clock vector clock
                 meta = value.get_json('causal-metadata')
-                //////////////////////////////////////////////
+            #   //////////////////////////////////////////////
 
-                q_flag = CompareClocks(meta)
+                q_flag = kvsHandler.CompareClocks(self, meta)
 
-                if(q_flag == 0)
+                if(q_flag == 0):
                     flag_loop = 1
                     KeyValDict[str(key)] = val
                     for sockt in replicas:
-                        if SOCKET_ADDRESS == sockt
+                        if SOCKET_ADDRESS == sockt:
                             # incrementing vector clock
                             VCDict[sockt] = VCDict[sockt] + 1
 
                             BigDict[str(value)] = val
                             BigDict[str(meta)] = meta
-                            BigDict[str(replica)] = sockt
+                            BigDict[str(sockt)] = sockt
 
                             #broadcsting to other replicas on end point "to-replica'"
                             for sock in replicas:
-                                if SOCKET_ADDRESS is not sock
+                                if SOCKET_ADDRESS is not sock:
                                     req = requests.put('http://'+sock+'/to-replica/' + key, json=BigDict, timeout = 1)
-
+                                    return req
                     del Q_Dict[key]
 
-
-    
-
-
-
         # go through the queue
-        # comapre stroed VC vs current vector clock
-        if VCDict >= StoredVC gto all values
-            stroedVC will store its key
-            then broadcast
-            delete the stored VC from the Queue
-            increase VCDict ++
+        # compare stored VC vs current vector clock
+        # if VCDict >= StoredVC gto all values:
+        #     storedVC will store its key
+        #     then broadcast
+        #     delete the stored VC from the Queue
+        #     increase VCDict ++
 
 
     def put(self, key):
-        value = requests.get_json('value')
+        value = request.get_json('value')
         if value is None:
             return jsonify(
                 error='Value is missing',
@@ -214,19 +207,19 @@ class kvsHandler(Resource):
             ),400
 
         # meta is the vector clock vector clock
-        meta = requests.get_json('causal-metadata')
+        meta = request.get_json('causal-metadata')
 
-        /////////////////////////////////////////
+#        /////////////////////////////////////////
 
-            object = request.json()
+        object = request.json()
 
-        ////////////////////////////////////////
+#      ////////////////////////////////////////
 
-        store_flag = CompareClocks(meta)
+        store_flag = kvsHandler.CompareClocks(self, meta)
 
         #Check queue of replicas if empty
         if not Q_Dict:
-            QueueCheckClient()
+            kvsHandler.QueueCheckClient(self)
             
         if(store_flag == -1):
             # We queue the Value here
@@ -238,64 +231,65 @@ class kvsHandler(Resource):
 
         # updating VC
         for sockt in replicas:
-            if SOCKET_ADDRESS == sockt
+            if SOCKET_ADDRESS == sockt:
                 # incrementing vector clock
                 VCDict[sockt] = VCDict[sockt] + 1
                 # loading meta data
                 BigDict[str(value)] = value
                 BigDict[str(meta)] = meta
-                BigDict[str(replica)] = sockt
+                BigDict[str(sockt)] = sockt
 
         #broadcsting to other replicas on end point "to-replica'"
         for sockt in replicas:
-            if SOCKET_ADDRESS is not sockt
+            if SOCKET_ADDRESS is not sockt:
                 req = requests.put('http://'+sockt+'/to-replica/' + key, json=BigDict, timeout = 10)
+                return req
     
     # This funtion is from Replica to Replica
-
+class broadcaster(Resource):
     @app.route('/to-replica/<key>', methods=['PUT'])
 
-    def QueueCheckReplica()
+    def QueueCheckReplica(self):
         flag_loop = 1
         while(flag_loop is 1):
             flag_loop = 0
             for key in Q_Dict:
                 value = Q_Dict[key]
 
-                ////////////////////////////////////
+    #            ////////////////////////////////////
                 val = value.get_json('value')
                 val = value['value']
                 # meta is the vector clock vector clock
                 meta = value.get_json('causal-metadata')
-                replica = value.get_json('replica')
-                //////////////////////////////////////////////
+                replica = value.get_json('sockt')
+    #            //////////////////////////////////////////////
 
-                q_flag = CompareClocks(meta)
+                q_flag = kvsHandler.CompareClocks(self, meta)
 
-                if(q_flag == 0)
+                if(q_flag == 0):
                     flag_loop = 1
                     KeyValDict[str(key)] = val
                     VCDict[replica] = VCDict[replica] + 1   
                     del Q_Dict[key]
 
     def put(self, key):
-        value = requests.get_json('value')
-        meta = requests.get_json('meta')
-        replica = requests.get_json('replica')
+        value = request.get_json('value')
+        meta = request.get_json('meta')
+        replica = request.get_json('sockt')
 
-        store_flag = CompareClocks(meta)
+        store_flag = kvsHandler.CompareClocks(self, meta)
 
-        /////////////////////////////////////////
+    #    /////////////////////////////////////////
 
-            object = request.json()
+        object = request.json()
 
-        ////////////////////////////////////////
+    #    ////////////////////////////////////////
 
         if not Q_Dict:
-            QueueCheckReplica()
+            kvsHandler.QueueCheckReplica(self)
 
         if(store_flag == -1):
-            QDict[key] = object
+            Q_Dict[key] = object
         else:
             KeyValDict[str(key)] = value
             # increment vector clock of the replica that got the request from the cleint
@@ -309,107 +303,107 @@ class kvsHandler(Resource):
 #~~~~~~~~~~~~~~~~~~ old: Key-Value operations endpoint~~~~~~~~~~~~~~~~~~~
 
 #Need to keep causal consistency using causal metadata
-class kvsHandler(Resource):
-    SOCKET_ADDRESS = os.environ.get('SOCKET_ADDRESS')
-    #@app.route('/key-value-store', methods=['PUT'])
-    def put(self, key):
+# class kvsHandler(Resource):
+#     SOCKET_ADDRESS = os.environ.get('SOCKET_ADDRESS')
+#     #@app.route('/key-value-store', methods=['PUT'])
+#     def put(self, key):
 
-        #Get The FORWARDING ADDRESS to determine which container running
-        global eventcounter
-        #enter the main container, else enter forwarding container
-        if SOCKET_ADDRESS is None:
-            #Need to check if there is no <value> given first
-            value = request.get_json()
-            value = value.get('value')
-            metadat = request.get_json()
-            metadat = metadat.get('causal-metadata')
-            if value is None:
-                return make_response(jsonify(
-                    error='Value is missing',
-                    message='Error in PUT',
-                ),400)
-            if len(key) > 50:
-                return make_response(jsonify(
-                    error='Key is too long',
-                    message='Error in PUT',
-                ),400)
-            #Update Value of key here
-            # KeyValDict[key] = request.values.get('value')
-            if key not in KeyValDict:
-                KeyValDict[str(key)] = value
-                eventcounter = eventcounter + 1
-                return make_response(jsonify({
-                    'message' : 'Added successfully',
-                    'causal-metadata' : 'V'+eventcounter
-                }), 201) #test script says this is 201
-            elif key in KeyValDict:
-                return make_response(jsonify({
-                    'message' : 'Added successfully',
-                    'causal-metadata' : 'V'+eventcounter
-                }), 201)
-        elif 'SOCKET_ADDRESS' in os.environ:
-            try:
-                value = request.get_json()
-                req = requests.put('http://'+SOCKET_ADDRESS+'/key-value-store/' + key, json=value, timeout = 10)
-                return req.json(),req.status_code
-            except:
-                return make_response(jsonify(
-                    error= 'Main instance is down', 
-                    message = 'Error in PUT'
-                    ), 503)
-            else:
-                return req.json(),req.status_code
-    #@app.route('/key-value-store', methods=['GET'])
-    def get(self, key):
-        if SOCKET_ADDRESS is None:
-            if key not in KeyValDict:
-                return make_response(jsonify(
-                    doesExist=False,
-                    error='Key does not exist',
-                    message='Error in GET'
-                ), 404)
-            elif key in KeyValDict:
-                value = KeyValDict[str(key)]
-                return make_response(jsonify({
-                    'message' : 'Retrieved successfully',
-                    'causal-metadata' : 'V'+eventcounter,
-                    'value' : value
-                }), 200)
-        elif 'SOCKET_ADDRESS' in os.environ:
-            try:
-                req = requests.get('http://'+SOCKET_ADDRESS+'/key-value-store/' + key)
-                return req.json(),req.status_code
-            except:
-                return make_response(jsonify(
-                    error= 'Main instance is down', 
-                    message = 'Error in GET'
-                    ), 503)
+#         #Get The FORWARDING ADDRESS to determine which container running
+#         global eventcounter
+#         #enter the main container, else enter forwarding container
+#         if SOCKET_ADDRESS is None:
+#             #Need to check if there is no <value> given first
+#             value = request.get_json()
+#             value = value.get('value')
+#             metadat = request.get_json()
+#             metadat = metadat.get('causal-metadata')
+#             if value is None:
+#                 return make_response(jsonify(
+#                     error='Value is missing',
+#                     message='Error in PUT',
+#                 ),400)
+#             if len(key) > 50:
+#                 return make_response(jsonify(
+#                     error='Key is too long',
+#                     message='Error in PUT',
+#                 ),400)
+#             #Update Value of key here
+#             # KeyValDict[key] = request.values.get('value')
+#             if key not in KeyValDict:
+#                 KeyValDict[str(key)] = value
+#                 eventcounter = eventcounter + 1
+#                 return make_response(jsonify({
+#                     'message' : 'Added successfully',
+#                     'causal-metadata' : 'V'+eventcounter
+#                 }), 201) #test script says this is 201
+#             elif key in KeyValDict:
+#                 return make_response(jsonify({
+#                     'message' : 'Added successfully',
+#                     'causal-metadata' : 'V'+eventcounter
+#                 }), 201)
+#         elif 'SOCKET_ADDRESS' in os.environ:
+#             try:
+#                 value = request.get_json()
+#                 req = requests.put('http://'+SOCKET_ADDRESS+'/key-value-store/' + key, json=value, timeout = 10)
+#                 return req.json(),req.status_code
+#             except:
+#                 return make_response(jsonify(
+#                     error= 'Main instance is down', 
+#                     message = 'Error in PUT'
+#                     ), 503)
+#             else:
+#                 return req.json(),req.status_code
+#     #@app.route('/key-value-store', methods=['GET'])
+#     def get(self, key):
+#         if SOCKET_ADDRESS is None:
+#             if key not in KeyValDict:
+#                 return make_response(jsonify(
+#                     doesExist=False,
+#                     error='Key does not exist',
+#                     message='Error in GET'
+#                 ), 404)
+#             elif key in KeyValDict:
+#                 value = KeyValDict[str(key)]
+#                 return make_response(jsonify({
+#                     'message' : 'Retrieved successfully',
+#                     'causal-metadata' : 'V'+eventcounter,
+#                     'value' : value
+#                 }), 200)
+#         elif 'SOCKET_ADDRESS' in os.environ:
+#             try:
+#                 req = requests.get('http://'+SOCKET_ADDRESS+'/key-value-store/' + key)
+#                 return req.json(),req.status_code
+#             except:
+#                 return make_response(jsonify(
+#                     error= 'Main instance is down', 
+#                     message = 'Error in GET'
+#                     ), 503)
 
-    #@app.route('/key-value-store', methods=['DELETE'])
-    def delete(self, key):
-        global eventcounter
-        if SOCKET_ADDRESS is None:
-            if key not in KeyValDict:
-                return make_response(jsonify(
-                    doesExist=False,
-                    error='Key does not exist',
-                    message='Error in DELETE'
-                ), 404)
-            elif key in KeyValDict:
-                del KeyValDict[str(key)]
-                eventcounter = eventcounter + 1
-                return make_response(jsonify(
-                    doesExist=True,
-                    message='Deleted successfully',
-                ), 200)
-        elif 'SOCKET_ADDRESS' in os.environ:
-            try:
-                req = requests.delete('http://'+SOCKET_ADDRESS+'/key-value-store/' + key)
-                return req.json(),req.status_code
-            except:
-                return make_response(jsonify(
-                    error= 'Main instance is down', 
-                    message = 'Error in DELETE'
-                    ), 503)
+#     #@app.route('/key-value-store', methods=['DELETE'])
+#     def delete(self, key):
+#         global eventcounter
+#         if SOCKET_ADDRESS is None:
+#             if key not in KeyValDict:
+#                 return make_response(jsonify(
+#                     doesExist=False,
+#                     error='Key does not exist',
+#                     message='Error in DELETE'
+#                 ), 404)
+#             elif key in KeyValDict:
+#                 del KeyValDict[str(key)]
+#                 eventcounter = eventcounter + 1
+#                 return make_response(jsonify(
+#                     doesExist=True,
+#                     message='Deleted successfully',
+#                 ), 200)
+#         elif 'SOCKET_ADDRESS' in os.environ:
+#             try:
+#                 req = requests.delete('http://'+SOCKET_ADDRESS+'/key-value-store/' + key)
+#                 return req.json(),req.status_code
+#             except:
+#                 return make_response(jsonify(
+#                     error= 'Main instance is down', 
+#                     message = 'Error in DELETE'
+#                     ), 503)
 api.add_resource(kvsHandler, '/key-value-store/', '/key-value-store/<key>')
 app.run(host=socket.gethostbyname(socket.gethostname()),port=8085,debug=True)
