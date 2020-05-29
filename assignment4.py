@@ -15,7 +15,7 @@ VCDict = dict() #Declaring vector clock dictionary
 Q_Dict = dict() #Declaring Queue dictonary
 BigDict = dict() #Declaring Send data dictionary
 eventcounter = 0 #Counter incremented every PUT and DELETE
-replicas = [os.environ['VIEW']]#.split(',')] #List of replicas
+
 SOCKET_ADDRESS = os.environ.get('SOCKET_ADDRESS')
 #FORWARDING_ADDRESS = os.environ.get('FORWARDING_ADDRESS')
 headers = "Content-Type: application/json"
@@ -23,6 +23,7 @@ headers = "Content-Type: application/json"
 #want to check if something in dictionary (if key in dict)
 
 #sets each replica's VC to 0
+replicas = [os.getenv('VIEW'), 0]#.split(',')] #List of replicas set to 0 if null
 for sockt in replicas:
     VCDict[str(sockt)] = 0
 
