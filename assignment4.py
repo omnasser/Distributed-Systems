@@ -4,7 +4,7 @@
 from flask import Flask
 from flask import request, jsonify, make_response
 from flask_restful import Resource, Api
-import os, requests, socket
+import os, requests, socket, sys
 from requests.exceptions import Timeout
 # from flask import jsonify
 
@@ -26,6 +26,14 @@ headers = "Content-Type: application/json"
 replicas = [os.getenv('VIEW'), 0]#.split(',')] #List of replicas set to 0 if null
 for sockt in replicas:
     VCDict[str(sockt)] = 0
+
+##########################################################################
+@app.route('/test-get/', methods=['GET'])
+def checker():
+    return 'Checker first'
+def obtainer():
+    return 'Hello World'
+
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~View Operations Endpoint~~~~~~~~~~~~~~~~~~~~~~~~
 class viewHandler(Resource):
@@ -138,164 +146,183 @@ api.add_resource(viewHandler, '/key-value-store-view')
 
 #Need to keep causal consistency using causal metadata
 #Vector clocks are recommended as causal metadata
-class kvsHandler(Resource):
-    SOCKET_ADDRESS = os.environ.get('SOCKET_ADDRESS')
+#class kvsHandler(Resource):
+SOCKET_ADDRESS = os.environ.get('SOCKET_ADDRESS')
 
-    @app.route('/key-value-store/<key>', methods=['PUT'])
-    def CompareClocks(self, meta):
+def CompareClocks(meta):
+    if meta is 0:
+        return 0
+    else:
         meta_list = meta.split(',')
-        map_obj = map(int, meta_list)
-        int_clock_client = list(map_obj)
-
+        for idx in range(0, len(meta_list)):
+            if (meta_list[idx]) == '':
+                return 0
+            meta_list[idx] = int(meta_list[idx])
+        # map_obj = map(int, meta_list)
+        # int_clock_client = list(map_obj)
         #opposite
         index = 0
         for replcount in replicas:
-            if int_clock_client[index] > VCDict[replcount]:
+            if meta_list[index] > VCDict[replcount]:
                 return -1
             index = index + 1
         return 0
 
-    def QueueCheckClient(self):
-        flag_loop = 1
-        while(flag_loop is 1):
-            flag_loop = 0
-            for key in Q_Dict:
-                value = Q_Dict[key]
+def QueueCheckClient():
+    flag_loop = 1
+    while(flag_loop is 1):
+        flag_loop = 0
+        for key in Q_Dict:
+            value = Q_Dict[key]
 
-            #    ////////////////////////////////////
-                val = value.get_json('value')
-                val = value['value']
-                # meta is the vector clock vector clock
-                meta = value.get_json('causal-metadata')
-            #   //////////////////////////////////////////////
+        #    ////////////////////////////////////
+            val = value.get_json('value')
+            val = value['value']
+            # meta is the vector clock vector clock
+            meta = value.get_json('causal-metadata')
+        #   //////////////////////////////////////////////
 
-                q_flag = kvsHandler.CompareClocks(self, meta)
+            q_flag = CompareClocks(meta)
 
-                if(q_flag == 0):
-                    flag_loop = 1
-                    KeyValDict[str(key)] = val
-                    for sockt in replicas:
-                        if SOCKET_ADDRESS == sockt:
-                            # incrementing vector clock
-                            VCDict[sockt] = VCDict[sockt] + 1
+            if(q_flag == 0):
+                flag_loop = 1
+                KeyValDict[str(key)] = val
+                for sockt in replicas:
+                    if SOCKET_ADDRESS == sockt:
+                        # incrementing vector clock
+                        VCDict[sockt] = VCDict[sockt] + 1
 
-                            BigDict[str(value)] = val
-                            BigDict[str(meta)] = meta
-                            BigDict[str(sockt)] = sockt
+                        BigDict[str(value)] = val
+                        BigDict[str(meta)] = meta
+                        BigDict[str(sockt)] = sockt
 
-                            #broadcsting to other replicas on end point "to-replica'"
-                            for sock in replicas:
-                                if SOCKET_ADDRESS is not sock:
-                                    req = requests.put('http://'+sock+'/to-replica/' + key, json=BigDict, timeout = 1)
-                                    return req
-                    del Q_Dict[key]
+                        #broadcsting to other replicas on end point "to-replica'"
+                        for sock in replicas:
+                            if SOCKET_ADDRESS is not sock:
+                                req = requests.put('http://'+socket+'/to-replica/' + key, json=BigDict, timeout = 1)
+                                return req.json(), req.status_code
+                del Q_Dict[key]
 
-        # go through the queue
-        # compare stored VC vs current vector clock
-        # if VCDict >= StoredVC gto all values:
-        #     storedVC will store its key
-        #     then broadcast
-        #     delete the stored VC from the Queue
-        #     increase VCDict ++
+    # go through the queue
+    # compare stored VC vs current vector clock
+    # if VCDict >= StoredVC gto all values:
+    #     storedVC will store its key
+    #     then broadcast
+    #     delete the stored VC from the Queue
+    #     increase VCDict ++
 
+@app.route('/key-value-store/<key>', methods=['PUT'])
+def put(key):
+    data = request.get_json()
+    value = data['value']
+    if value is None:
+        return jsonify(
+            error='Value is missing',
+            message='Error in PUT',
+        ),400
 
-    def put(self, key):
-        value = request.get_json('value')
-        if value is None:
-            return jsonify(
-                error='Value is missing',
-                message='Error in PUT',
-            ),400
+    # meta is the vector clock vector clock
 
-        # meta is the vector clock vector clock
-        meta = request.get_json('causal-metadata')
+    meta = data['causal-metadata']
 
 #        /////////////////////////////////////////
 
-        object = request.json()
+#    object = request.json('value')
 
 #      ////////////////////////////////////////
 
-        store_flag = kvsHandler.CompareClocks(self, meta)
+    store_flag = CompareClocks(meta)
 
-        #Check queue of replicas if empty
-        if not Q_Dict:
-            kvsHandler.QueueCheckClient(self)
-            
-        if(store_flag == -1):
-            # We queue the Value here
-            # add dict like object to Q_object
-            Q_Dict[key] = object
-            
-        else:
-            KeyValDict[str(key)] = value
+    #Check queue of replicas if empty
+    #if not Q_Dict:
+        #QueueCheckClient()
+        
+    if(store_flag == -1):
+        # We queue the Value here
+        # add dict like object to Q_object
+        # DataDict = dict()
+        # DataDict[str(value)] = value
+        # DataDict[str(meta)] = meta
+        # Q_Dict[key] = DataDict#object
 
-        # updating VC
-        for sockt in replicas:
-            if SOCKET_ADDRESS == sockt:
-                # incrementing vector clock
-                VCDict[sockt] = VCDict[sockt] + 1
-                # loading meta data
-                BigDict[str(value)] = value
-                BigDict[str(meta)] = meta
-                BigDict[str(sockt)] = sockt
+        Q_Dict[key] = data
+        
+    else:
+        KeyValDict[str(key)] = value
 
-        #broadcsting to other replicas on end point "to-replica'"
-        for sockt in replicas:
-            if SOCKET_ADDRESS is not sockt:
-                req = requests.put('http://'+sockt+'/to-replica/' + key, json=BigDict, timeout = 10)
-                return req
-    
-    # This funtion is from Replica to Replica
-class broadcaster(Resource):
-    @app.route('/to-replica/<key>', methods=['PUT'])
+    # updating VC
+    for sockt in replicas:
+        if SOCKET_ADDRESS == sockt:
+            # incrementing vector clock
+            VCDict[sockt] = VCDict[sockt] + 1
+            # loading meta data
+            BigDict[str(value)] = value
+            BigDict[str(meta)] = meta
+            BigDict[str(sockt)] = sockt
 
-    def QueueCheckReplica(self):
-        flag_loop = 1
-        while(flag_loop is 1):
-            flag_loop = 0
-            for key in Q_Dict:
-                value = Q_Dict[key]
+    #broadcsting to other replicas on end point "to-replica'"
+    for sockt in replicas:
+        if SOCKET_ADDRESS is not sockt:
+            req = requests.put('http://'+sockt+'/to-replica/' + key, json=BigDict, timeout = 10)
+            return req.json(), req.status_code
 
-    #            ////////////////////////////////////
-                val = value.get_json('value')
-                val = value['value']
-                # meta is the vector clock vector clock
-                meta = value.get_json('causal-metadata')
-                replica = value.get_json('sockt')
-    #            //////////////////////////////////////////////
+# This funtion is from Replica to Replica
+#class broadcaster(Resource):
+def QueueCheckReplica():
+    flag_loop = 1
+    while(flag_loop is 1):
+        flag_loop = 0
+        for key in Q_Dict:
+            value = Q_Dict[key]
 
-                q_flag = kvsHandler.CompareClocks(self, meta)
+#            ////////////////////////////////////
+            val = value.get_json('value')
+            val = value['value']
+            # meta is the vector clock vector clock
+            meta = value.get_json('causal-metadata')
+            replica = value.get_json('sockt')
+#            //////////////////////////////////////////////
 
-                if(q_flag == 0):
-                    flag_loop = 1
-                    KeyValDict[str(key)] = val
-                    VCDict[replica] = VCDict[replica] + 1   
-                    del Q_Dict[key]
+            q_flag = CompareClocks(meta)
 
-    def put(self, key):
-        value = request.get_json('value')
-        meta = request.get_json('meta')
-        replica = request.get_json('sockt')
+            if(q_flag == 0):
+                flag_loop = 1
+                KeyValDict[str(key)] = val
+                VCDict[replica] = VCDict[replica] + 1   
+                del Q_Dict[key]
+@app.route('/to-replica/<key>', methods=['PUT'])
+def Qrep(key):
+    # value = request.get_json('value')
+    # meta = request.get_json('meta')
+    # replica = request.get_json('sockt')
+    data = request.get_json()
+    value = data['value']
+    meta = data['meta']
+    replica = data['sockt']
 
-        store_flag = kvsHandler.CompareClocks(self, meta)
+    store_flag = CompareClocks(meta)
 
-    #    /////////////////////////////////////////
+#    /////////////////////////////////////////
 
-        object = request.json()
+    #object = request.json()
 
-    #    ////////////////////////////////////////
+#    ////////////////////////////////////////
 
-        if not Q_Dict:
-            kvsHandler.QueueCheckReplica(self)
+  #  if not Q_Dict:
+      #  QueueCheckReplica()
 
-        if(store_flag == -1):
-            Q_Dict[key] = object
-        else:
-            KeyValDict[str(key)] = value
-            # increment vector clock of the replica that got the request from the cleint
-            VCDict[replica] = VCDict[replica] + 1
-            
+    if(store_flag == -1):
+        # DataDict = dict()
+        # DataDict[str(value)] = value
+        # DataDict[str(meta)] = meta
+        # DataDict[str(replica)] = replica
+        # Q_Dict[key] = DataDict
+        Q_Dict[key] = data
+    else:
+        KeyValDict[str(key)] = value
+        # increment vector clock of the replica that got the request from the cleint
+        VCDict[replica] = VCDict[replica] + 1
+        
 
 
 
@@ -406,5 +433,5 @@ class broadcaster(Resource):
 #                     error= 'Main instance is down', 
 #                     message = 'Error in DELETE'
 #                     ), 503)
-api.add_resource(kvsHandler, '/key-value-store/', '/key-value-store/<key>')
+#api.add_resource(kvsHandler, '/key-value-store/', '/key-value-store/<key>')
 app.run(host=socket.gethostbyname(socket.gethostname()),port=8085,debug=True)
