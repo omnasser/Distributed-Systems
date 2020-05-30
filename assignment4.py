@@ -275,6 +275,8 @@ def put(key):
 
     for sockt in replicas:
         if SOCKET_ADDRESS is not sockt:
+            ###############JSON DECODE ERROR ######################
+            # return SOCKET_ADDRESS
             req = requests.put('http://'+sockt+'/to-replica/' + key, json=BigDict, timeout = 10)
             return req.json(), req.status_code
 
