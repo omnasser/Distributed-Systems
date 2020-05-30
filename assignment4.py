@@ -199,7 +199,7 @@ def QueueCheckClient():
                         # incrementing vector clock
                         VCDict[sockt] = VCDict[sockt] + 1
 
-                        BigDict[str(value)] = val
+                        BigDict[str(val)] = val
                         BigDict[str(meta)] = meta
                         BigDict[str(sockt)] = sockt
 
@@ -220,8 +220,8 @@ def QueueCheckClient():
 
 @app.route('/key-value-store/<key>', methods=['PUT'])
 def put(key):
-    data = request.get_json()
-    value = data['value']
+    value = request.get_json('value')
+    # value = data['value']
     if value is None:
         return jsonify(
             error='Value is missing',
@@ -229,20 +229,20 @@ def put(key):
         ),400
 
     # meta is the vector clock vector clock
-
-    meta = data['causal-metadata']
-
+    meta = request.get_json('causal-metadata')
+    # meta = data['causal-metadata']
+    # return meta
 #        /////////////////////////////////////////
 
 #    object = request.json('value')
 
 #      ////////////////////////////////////////
-
+    return meta
     store_flag = CompareClocks(meta)
 
     #Check queue of replicas if empty
-    #if not Q_Dict:
-        #QueueCheckClient()
+    if not Q_Dict:
+        QueueCheckClient()
         
     if(store_flag == -1):
         # We queue the Value here
@@ -251,8 +251,10 @@ def put(key):
         # DataDict[str(value)] = value
         # DataDict[str(meta)] = meta
         # Q_Dict[key] = DataDict#object
-
-        Q_Dict[key] = data
+        Small_Dict = dict()
+        Small_Dict['value'] = value
+        Small_Dict['causal-metadata'] = meta
+        Q_Dict[key] = Small_Dict
         
     else:
         KeyValDict[str(key)] = value
@@ -304,10 +306,10 @@ def Qrep(key):
     # value = request.get_json('value')
     # meta = request.get_json('meta')
     # replica = request.get_json('sockt')
-    data = request.get_json()
-    value = data['value']
-    meta = data['meta']
-    replica = data['sockt']
+    # data = request.get_json()
+    value = request.get_json('value')
+    meta = request.get_json('causal-metadata')
+    replica = request.get_json('sockt')
 
     store_flag = CompareClocks(meta)
 
@@ -326,7 +328,11 @@ def Qrep(key):
         # DataDict[str(meta)] = meta
         # DataDict[str(replica)] = replica
         # Q_Dict[key] = DataDict
-        Q_Dict[key] = data
+        Another_Dict = dict()
+        Another_Dict['value'] = value
+        Another_Dict['meta'] = meta
+        Another_Dict['replica'] = replica
+        Q_Dict[key] = Another_Dict
     else:
         KeyValDict[str(key)] = value
         # increment vector clock of the replica that got the request from the cleint
