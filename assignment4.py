@@ -23,14 +23,21 @@ headers = "Content-Type: application/json"
 #want to check if something in dictionary (if key in dict)
 
 #sets each replica's VC to 0
-replicas = [os.getenv('VIEW'), 0]#.split(',')] #List of replicas set to 0 if null
+rep = [os.getenv('VIEW'), 0]
+replicas = rep[0].split(",")
+# replicas = [os.getenv('VIEW'), 0]
+# for sockt in rep:
+    # replicas = sockt.split(",")#.split(',')] #List of replicas set to 0 if null
+    # replicas = rep.split(",")
+# for sockt in replicas:
+#     replicas = sockt.split(",")
 for sockt in replicas:
     VCDict[str(sockt)] = 0
 
 ##########################################################################
 @app.route('/test-get/', methods=['GET'])
 def checker():
-    return 'Checker first'
+    return replicas[0]
 def obtainer():
     return 'Hello World'
 
@@ -199,7 +206,7 @@ def QueueCheckClient():
                         #broadcsting to other replicas on end point "to-replica'"
                         for sock in replicas:
                             if SOCKET_ADDRESS is not sock:
-                                req = requests.put('http://'+socket+'/to-replica/' + key, json=BigDict, timeout = 1)
+                                req = requests.put('http://'+sock+'/to-replica/' + key, json=BigDict, timeout = 10)
                                 return req.json(), req.status_code
                 del Q_Dict[key]
 
@@ -252,6 +259,7 @@ def put(key):
 
     # updating VC
     for sockt in replicas:
+    #    rep_list=sockt.split(",")
         if SOCKET_ADDRESS == sockt:
             # incrementing vector clock
             VCDict[sockt] = VCDict[sockt] + 1
@@ -259,8 +267,10 @@ def put(key):
             BigDict[str(value)] = value
             BigDict[str(meta)] = meta
             BigDict[str(sockt)] = sockt
+    #    return rep_list[0]
 
     #broadcsting to other replicas on end point "to-replica'"
+
     for sockt in replicas:
         if SOCKET_ADDRESS is not sockt:
             req = requests.put('http://'+sockt+'/to-replica/' + key, json=BigDict, timeout = 10)
