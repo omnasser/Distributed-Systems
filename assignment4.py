@@ -157,7 +157,7 @@ api.add_resource(viewHandler, '/key-value-store-view')
 SOCKET_ADDRESS = os.environ.get('SOCKET_ADDRESS')
 
 def CompareClocks(meta):
-    if meta is 0:
+    if len(meta) is 0:
         return 0
     else:
         meta_list = meta.split(',')
@@ -220,16 +220,17 @@ def QueueCheckClient():
 
 @app.route('/key-value-store/<key>', methods=['PUT'])
 def put(key):
-    value = request.get_json('value')
+    value2 = request.get_json()
+    value = value2['value']
     # value = data['value']
     if value is None:
         return jsonify(
             error='Value is missing',
             message='Error in PUT',
         ),400
-
     # meta is the vector clock vector clock
-    meta = request.get_json('causal-metadata')
+    # meta2 = request.get_json()
+    meta = value2['causal-metadata']
     # meta = data['causal-metadata']
     # return meta
 #        /////////////////////////////////////////
@@ -237,7 +238,6 @@ def put(key):
 #    object = request.json('value')
 
 #      ////////////////////////////////////////
-    return meta
     store_flag = CompareClocks(meta)
 
     #Check queue of replicas if empty
@@ -307,9 +307,10 @@ def Qrep(key):
     # meta = request.get_json('meta')
     # replica = request.get_json('sockt')
     # data = request.get_json()
-    value = request.get_json('value')
-    meta = request.get_json('causal-metadata')
-    replica = request.get_json('sockt')
+    value2 = request.get_json()
+    value = value2['value']
+    meta = value2['causal-metadata']
+    replica = value2['sockt']
 
     store_flag = CompareClocks(meta)
 
