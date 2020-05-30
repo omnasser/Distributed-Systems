@@ -149,7 +149,7 @@ class viewHandler(Resource):
 api.add_resource(viewHandler, '/key-value-store-view') 
 
 
-#~~~~~~~~~~~~~~~~~~Key-Value operations endpoint~~~~~~~~~~~~~~~~~~~
+#~~~~~~~~~~~~~~~~~~Key-Value-Store operations endpoint~~~~~~~~~~~~~~~~~~~
 
 #Need to keep causal consistency using causal metadata
 #Vector clocks are recommended as causal metadata
@@ -180,13 +180,13 @@ def QueueCheckClient():
     while(flag_loop is 1):
         flag_loop = 0
         for key in Q_Dict:
-            value = Q_Dict[key]
+            data = Q_Dict[key]
 
         #    ////////////////////////////////////
-            val = value.get_json('value')
-            val = value['value']
+            # val = request.get_json()
+            val = data['value']
             # meta is the vector clock vector clock
-            meta = value.get_json('causal-metadata')
+            meta = data['causal-metadata']
         #   //////////////////////////////////////////////
 
             q_flag = CompareClocks(meta)
@@ -283,14 +283,13 @@ def QueueCheckReplica():
     while(flag_loop is 1):
         flag_loop = 0
         for key in Q_Dict:
-            value = Q_Dict[key]
+            data = Q_Dict[key]
 
 #            ////////////////////////////////////
-            val = value.get_json('value')
-            val = value['value']
+            val = data['value']
             # meta is the vector clock vector clock
-            meta = value.get_json('causal-metadata')
-            replica = value.get_json('sockt')
+            meta = data['causal-metadata']
+            replica = data['sockt']
 #            //////////////////////////////////////////////
 
             q_flag = CompareClocks(meta)
@@ -318,8 +317,8 @@ def Qrep(key):
 
 #    ////////////////////////////////////////
 
-  #  if not Q_Dict:
-      #  QueueCheckReplica()
+    if not Q_Dict:
+        QueueCheckReplica()
 
     if(store_flag == -1):
         # DataDict = dict()
