@@ -227,7 +227,7 @@ def put(key):
         Small_Dict = dict()
         Small_Dict['value'] = value
         Small_Dict['causal-metadata'] = meta
-        small_Dict['key'] = key
+        Small_Dict['key'] = key
         Q_Dict[store_count] = Small_Dict
         store_count = store_count + 1
         
@@ -251,7 +251,15 @@ def put(key):
 
                 ###############JSON DECODE ERROR ######################
                 # return SOCKET_ADDRESS
-                req = requests.put('http://'+sockt+'/to-replica/' + key, json=BigDict, timeout = 10)
+                # val = request.get_json(meta)
+                req = requests.put('http://'+sockt+'/to-replica/'+key, json=BigDict, timeout = 10)
+                #need to fix syntax on this make_response because causal-metadata needs to be in ''
+                # trying to do method with semicolon instead of = sign
+                return make_response(jsonify(
+                    message = 'Added Successfully',
+                    causal-metadata = meta
+                ), 201)
+                #req = requests.put('http://'+sockt+'/to-replica/'+key, json=BigDict, timeout = 10)
         return req.json(), req.status_code
 
 def QueueCheckReplica():
