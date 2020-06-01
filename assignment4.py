@@ -109,13 +109,13 @@ class viewHandler(Resource):
             else:
                 return req.json(),req.status_code
     #@app.route('/key-value-store-view', methods=['GET'])
-    def get(self):
-        #Concatenates List of strings...
-        repstr = ','.join(replicas)
-        return make_response(jsonify(
-            message='View Retrieved successfully',
-            view=repstr
-        ), 200)
+    # def get(self):
+    #     #Concatenates List of strings...
+    #     repstr = ','.join(replicas)
+    #     return make_response(jsonify(
+    #         message='View Retrieved successfully',
+    #         view=repstr
+    #     ), 200)
 
         # elif SOCKET_ADDRESS in os.environ:
         #     try:
@@ -202,7 +202,7 @@ def QueueCheckClient():
                         for sock in replicas:
                             if SOCKET_ADDRESS is not sock:
                                 req = requests.put('http://'+sock+'/to-replica/' + key, json=BigDict, timeout = 10)
-                                return req.json(), req.status_code
+                        return req.json(), req.status_code
                 del Q_Dict[indx]
 
 @app.route('/key-value-store/<key>', methods=['PUT'])
@@ -252,15 +252,14 @@ def put(key):
                 ###############JSON DECODE ERROR ######################
                 # return SOCKET_ADDRESS
                 # val = request.get_json(meta)
-                req = requests.put('http://'+sockt+'/to-replica/'+key, json=BigDict, timeout = 10)
+                requests.put('http://'+sockt+'/to-replica/'+key, json=BigDict, timeout = 10)
                 #need to fix syntax on this make_response because causal-metadata needs to be in ''
                 # trying to do method with semicolon instead of = sign
-                return make_response(jsonify({
-                    'message' : 'Added Successfully',
-                    'causal-metadata' : meta
-                }), 201)
                 #req = requests.put('http://'+sockt+'/to-replica/'+key, json=BigDict, timeout = 10)
-        return req.json(), req.status_code
+        return make_response(jsonify({
+            'message' : 'Added Successfully',
+            'causal-metadata' : meta
+        }), 201)
 
 def QueueCheckReplica():
     flag_loop = 1
@@ -308,5 +307,20 @@ def Qrep(key):
 
         # increment vector clock of the replica that got the request from the cleint
         VCDict[replica] = VCDict[replica] + 1
-        
+
+@app.route('/key-value-store/<key>', methods=['GET'])
+def get(key):
+    #need to check if key exists
+    val = KeyValDict[key]
+    flagt = 0
+    vector = ''
+    for sockt in replicas:
+        if flagt == 1:
+            vector = vector + ','
+        temp = str(VCDict[sockt])
+        flagt = 1
+        vector = vector + temp
+        # vector = ','.join(str(VCDict.values()))
+    return vector
+
 app.run(host=socket.gethostbyname(socket.gethostname()),port=8085,debug=True)
