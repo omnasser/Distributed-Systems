@@ -255,10 +255,10 @@ def put(key):
                 req = requests.put('http://'+sockt+'/to-replica/'+key, json=BigDict, timeout = 10)
                 #need to fix syntax on this make_response because causal-metadata needs to be in ''
                 # trying to do method with semicolon instead of = sign
-                return make_response(jsonify(
-                    message = 'Added Successfully',
-                    causal-metadata = meta
-                ), 201)
+                return make_response(jsonify({
+                    'message' : 'Added Successfully',
+                    'causal-metadata' : meta
+                }), 201)
                 #req = requests.put('http://'+sockt+'/to-replica/'+key, json=BigDict, timeout = 10)
         return req.json(), req.status_code
 
