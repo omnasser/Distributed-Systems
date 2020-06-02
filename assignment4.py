@@ -154,7 +154,6 @@ class viewHandler(Resource):
                 ), 404)
 api.add_resource(viewHandler, '/key-value-store-view') 
 
-
 #~~~~~~~~~~~~~~~~~~Key-Value-Store operations endpoint~~~~~~~~~~~~~~~~~~~
 
 SOCKET_ADDRESS = os.environ.get('SOCKET_ADDRESS')
@@ -302,13 +301,18 @@ def QueueCheckReplica():
             val = data['value']
             meta = data['causal-metadata']
             replica = data['sockt']
+            typ = data['type']
 
             q_flag = CompareClocks(meta)
 
             if(q_flag == 0):
                 flag_loop = 1
-                KeyValDict[key] = val
-                VCDict[replica] = VCDict[replica] + 1   
+                if typ is 'delete':
+                    del KeyValDict[key]
+                    VCDict[replica] = VCDict[replica] + 1
+                elif typ is 'put':
+                    KeyValDict[key] = val
+                    VCDict[replica] = VCDict[replica] + 1   
                 del Q_Dict[indx]
 
 @app.route('/to-replica/<key>', methods=['PUT'])
@@ -329,6 +333,7 @@ def Qrep(key):
         Another_Dict['meta'] = meta
         Another_Dict['replica'] = replica
         Another_Dict['key'] = key
+        Another_Dict['type'] = 'put'
         Q_Dict[store_count] = Another_Dict
         store_count = store_count + 1
     else:
@@ -362,15 +367,9 @@ def get(key):
             'error' : 'Error in GET',
             'message' : 'Key does not exist'
         }), 404)
+
 @app.route('/key-value-store/<key>', methods=['DELETE'])
 def delete(key):
-    #get causal metadata
-    #compare vector clocks
-    #check queue
-    #if clocks are bad make queue dictionary for delete
-    #to store the key and the type of request, and the causal-netadata
-    #otherwise if VC good delete value and increase VC
-    #Broadcast the delete message
     value2 = request.get_json()
     meta = value2['causal-metadata']
     store_flg = CompareClocks(meta)
@@ -388,8 +387,9 @@ def delete(key):
         for sockt in replicas:          
             if SOCKET_ADDRESS == sockt:
                 VCDict[sockt] = VCDict[sockt] + 1
-        BigDict['causal-metadata'] = meta
-        BigDict['type'] = 'delete'
+                BigDict['causal-metadata'] = meta
+                BigDict['sockt'] = sockt
+
         #broadcasting delete to other replicas
         for sockt in replicas:
                 if SOCKET_ADDRESS != sockt:
@@ -406,4 +406,34 @@ def delete(key):
             'message' : 'Deleted successfully',
             'causal-metadata' : vector
         }), 200)
+<<<<<<< HEAD
 app.run(host=socket.gethostbyname(socket.gethostname()),port=8085,debug=True)
+=======
+
+@app.route('/to-replica/<key>', methods=['DELETE'])
+def deli(key):
+    value2 = request.get_json()
+    meta = value2['causal-metadata']
+    replica = value2['sockt']
+
+    store_flag = CompareClocks(meta)
+
+    if not Q_Dict:
+        QueueCheckReplica()
+
+    if(store_flag == -1):
+        Another_Dict = dict()
+        Another_Dict['meta'] = meta
+        Another_Dict['replica'] = replica
+        Another_Dict['key'] = key
+        Another_Dict['type'] = 'delete'
+        Q_Dict[store_count] = Another_Dict
+        store_count = store_count + 1
+    else:
+        del KeyValc  Dict[key]
+        # increment vector clock of the replica that got the request from the cleint
+        
+        VCDict[replica] = VCDict[replica] + 1
+
+app.run(host=socket.gethostbyname(socket.gethostname()),port=8085,debug=True)
+>>>>>>> 7df24d1e16ebb206047bacee46557541f626e6a7
