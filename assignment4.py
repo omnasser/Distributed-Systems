@@ -13,6 +13,7 @@ api = Api(app)
 KeyValDict = dict() #declaring dictionary
 VCDict = dict() #Declaring vector clock dictionary
 Q_Dict = dict() #Declaring Queue dictonary
+#DeletQ = dict() #Declaring Delete Queue Dictionary
 BigDict = dict() #Declaring Send data dictionary
 eventcounter = 0 #Counter incremented every PUT and DELETE
 
@@ -178,31 +179,49 @@ def QueueCheckClient():
         flag_loop = 0
         for indx in Q_Dict:
             data = Q_Dict[indx]
-
+            #type=data['type']
             val = data['value']
             meta = data['causal-metadata']
             key = data['key']
+            typ = data['type']
 
             q_flag = CompareClocks(meta)
 
             if(q_flag == 0):
                 flag_loop = 1
-                KeyValDict[key] = val
-                for sockt in replicas:
-                    if SOCKET_ADDRESS == sockt:
-                        # incrementing vector clock
-                        VCDict[sockt] = VCDict[sockt] + 1
+                #if type = delete 
+                #delete value
+                #increment VC
+                #pad bigdict
+                #broadcast delete request
+                if typ is 'delete':
+                    del KeyValDict[key]
+                    for sockt in replicas:          
+                        if SOCKET_ADDRESS == sockt:
+                            VCDict[sockt] = VCDict[sockt] + 1
+                    BigDict['causal-metadata'] = meta
+                    BigDict['type'] = 'delete'
+                    #broadcasting delete to other replicas
+                    for sockt in replicas:
+                            if SOCKET_ADDRESS != sockt:
+                                requests.delete('http://'+sockt+'/to-replica/'+key, json=BigDict, timeout = 10)
+                elif typ is 'put':
+                    KeyValDict[key] = val
+                    for sockt in replicas:
+                        if SOCKET_ADDRESS == sockt:
+                            # incrementing vector clock
+                            VCDict[sockt] = VCDict[sockt] + 1
 
-                        #load dictonary to broadcst
-                        BigDict['value'] = val
-                        BigDict['causal-metadata'] = meta
-                        BigDict['replica'] = sockt
+                            #load dictonary to broadcst
+                            BigDict['value'] = val
+                            BigDict['causal-metadata'] = meta
+                            BigDict['replica'] = sockt
 
-                        #broadcsting to other replicas on end point "to-replica'"
-                        for sock in replicas:
-                            if SOCKET_ADDRESS is not sock:
-                                req = requests.put('http://'+sock+'/to-replica/' + key, json=BigDict, timeout = 10)
-                        return req.json(), req.status_code
+                            #broadcsting to other replicas on end point "to-replica'"
+                            for sock in replicas:
+                                if SOCKET_ADDRESS is not sock:
+                                    req = requests.put('http://'+sock+'/to-replica/' + key, json=BigDict, timeout = 10)
+                            return req.json(), req.status_code
                 del Q_Dict[indx]
 
 @app.route('/key-value-store/<key>', methods=['PUT'])
@@ -231,6 +250,8 @@ def put(key):
         Small_Dict['value'] = value
         Small_Dict['causal-metadata'] = meta
         Small_Dict['key'] = key
+        Small_Dict['type'] = 'put'
+        #Small_Dict['type'] = string of put
         Q_Dict[store_count] = Small_Dict
         store_count = store_count + 1
         
@@ -251,14 +272,7 @@ def put(key):
         #broadcsting to other replicas on end point "to-replica'"
         for sockt in replicas:
             if SOCKET_ADDRESS != sockt:
-
-                ###############JSON DECODE ERROR ######################
-                # return SOCKET_ADDRESS
-                # val = request.get_json(meta)
                 requests.put('http://'+sockt+'/to-replica/'+key, json=BigDict, timeout = 10)
-                #need to fix syntax on this make_response because causal-metadata needs to be in ''
-                # trying to do method with semicolon instead of = sign
-                #req = requests.put('http://'+sockt+'/to-replica/'+key, json=BigDict, timeout = 10)
         flagt = 0
         vector = ''
         for sockt in replicas:
@@ -348,7 +362,48 @@ def get(key):
             'error' : 'Error in GET',
             'message' : 'Key does not exist'
         }), 404)
-# @app.route('/key-value-store/<key>', methods=['DELETE'])
-# def delete(key):
-
+@app.route('/key-value-store/<key>', methods=['DELETE'])
+def delete(key):
+    #get causal metadata
+    #compare vector clocks
+    #check queue
+    #if clocks are bad make queue dictionary for delete
+    #to store the key and the type of request, and the causal-netadata
+    #otherwise if VC good delete value and increase VC
+    #Broadcast the delete message
+    value2 = request.get_json()
+    meta = value2['causal-metadata']
+    store_flg = CompareClocks(meta)
+    if not Q_Dict:
+        QueueCheckClient()
+    if store_flg == -1:
+        Small_Dict = dict()
+        Small_Dict['causal-metadata'] = meta
+        Small_Dict['key'] = key
+        Small_Dict['type'] = 'delete'
+        Q_Dict[store_count] = Small_Dict
+        store_count = store_count + 1
+    else:
+        del KeyValDict[key]
+        for sockt in replicas:          
+            if SOCKET_ADDRESS == sockt:
+                VCDict[sockt] = VCDict[sockt] + 1
+        BigDict['causal-metadata'] = meta
+        BigDict['type'] = 'delete'
+        #broadcasting delete to other replicas
+        for sockt in replicas:
+                if SOCKET_ADDRESS != sockt:
+                    requests.delete('http://'+sockt+'/to-replica/'+key, json=BigDict, timeout = 10)
+        vector = ''
+        return vector
+        for sockt in replicas:
+            if flagt == 1:
+                vector = vector + ','
+            temp = str(VCDict[sockt])
+            flagt = 1
+            vector = vector + temp
+        return make_response(jsonify({
+            'message' : 'Deleted successfully',
+            'causal-metadata' : vector
+        }), 200)
 app.run(host=socket.gethostbyname(socket.gethostname()),port=8085,debug=True)
