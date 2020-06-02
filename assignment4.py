@@ -207,6 +207,9 @@ def QueueCheckClient():
 
 @app.route('/key-value-store/<key>', methods=['PUT'])
 def put(key):
+    exist = 0
+    if key in KeyValDict:
+        exist = 1
     value2 = request.get_json()
     value = value2['value']
     meta = value2['causal-metadata']
@@ -244,10 +247,10 @@ def put(key):
                 BigDict['value'] = value
                 BigDict['causal-metadata'] = meta
                 BigDict['sockt'] = sockt
-
+        
         #broadcsting to other replicas on end point "to-replica'"
         for sockt in replicas:
-            if SOCKET_ADDRESS is not sockt:
+            if SOCKET_ADDRESS != sockt:
 
                 ###############JSON DECODE ERROR ######################
                 # return SOCKET_ADDRESS
@@ -256,10 +259,23 @@ def put(key):
                 #need to fix syntax on this make_response because causal-metadata needs to be in ''
                 # trying to do method with semicolon instead of = sign
                 #req = requests.put('http://'+sockt+'/to-replica/'+key, json=BigDict, timeout = 10)
+        flagt = 0
+        vector = ''
+        for sockt in replicas:
+            if flagt == 1:
+                vector = vector + ','
+            temp = str(VCDict[sockt])
+            flagt = 1
+            vector = vector + temp
+        if exist == 0:
+            return make_response(jsonify({
+                'message' : 'Added Successfully',
+                'causal-metadata' : vector
+            }), 201)
         return make_response(jsonify({
-            'message' : 'Added Successfully',
-            'causal-metadata' : meta
-        }), 201)
+            'message' : 'Updated Successfully',
+            'causal-metadata' : vector
+        }), 200)
 
 def QueueCheckReplica():
     flag_loop = 1
@@ -311,16 +327,28 @@ def Qrep(key):
 @app.route('/key-value-store/<key>', methods=['GET'])
 def get(key):
     #need to check if key exists
-    val = KeyValDict[key]
-    flagt = 0
-    vector = ''
-    for sockt in replicas:
-        if flagt == 1:
-            vector = vector + ','
-        temp = str(VCDict[sockt])
-        flagt = 1
-        vector = vector + temp
-        # vector = ','.join(str(VCDict.values()))
-    return vector
+    if key in KeyValDict:
+        val = KeyValDict[key]
+        flagt = 0
+        vector = ''
+        for sockt in replicas:
+            if flagt == 1:
+                vector = vector + ','
+            temp = str(VCDict[sockt])
+            flagt = 1
+            vector = vector + temp
+            # vector = ','.join(str(VCDict.values()))
+        return make_response(jsonify({
+            'message' : 'Retrieved successfully',
+            'causal-metadata' : vector,
+            'value' : val
+        }), 200)
+    else:
+        return make_response(jsonify({
+            'error' : 'Error in GET',
+            'message' : 'Key does not exist'
+        }), 404)
+# @app.route('/key-value-store/<key>', methods=['DELETE'])
+# def delete(key):
 
 app.run(host=socket.gethostbyname(socket.gethostname()),port=8085,debug=True)
