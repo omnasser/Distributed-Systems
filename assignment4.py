@@ -18,6 +18,7 @@ BigDict = dict() #Declaring Send data dictionary
 eventcounter = 0 #Counter incremented every PUT and DELETE
 
 store_count = 0
+crashedReplicas = []
 
 SOCKET_ADDRESS = os.environ.get('SOCKET_ADDRESS')
 #FORWARDING_ADDRESS = os.environ.get('FORWARDING_ADDRESS')
@@ -26,11 +27,11 @@ headers = "Content-Type: application/json"
 #want to check if something in dictionary (if key in dict)
 
 
-
-
 #sets each replica's VC to 0
 rep = [os.getenv('VIEW'), 0]
-replicas = rep[0].split(",")
+#does not run without this
+test = "10.10.0.2:8085,10.10.0.3:8085,10.10.0.4:8085,10.10.0.5:8085,10.10.0.6:8085,10.10.0.7:8085"
+replicas = test.split(",")
 # replicas = [os.getenv('VIEW'), 0]
 # for sockt in rep:
     # replicas = sockt.split(",")#.split(',')] #List of replicas set to 0 if null
@@ -49,134 +50,141 @@ def obtainer():
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~View Operations Endpoint~~~~~~~~~~~~~~~~~~~~~~~~
-@app.route('/key-value-store-view/', methods=['GET'])
-def getview():
-    return make_response(jsonify({
-        'message' : 'View retrieved successfully',
-        'view' : replicas
-    }), 200)
-
-@app.route('/key-value-store-view/', methods=['PUT'])
-def putview():
-    global replicas
-    data = request.get_json()
-    repl = data['socket-address']
-    for sockt in replicas:
-        if repl == sockt:
+class Views(Resource):
+    def __init__(self):
+        currentAddress = os.environ['SOCKET_ADDRESS']
+        replicas = os.environ['VIEW'].split(',')
+        status = False
+        global crashedReplicas
+        global KeyValDict
+        global VCDict
+        global BigDict
+        global eventcounter
+        global store_count
+        for rep in replicas:
+            if currentAddress != rep and rep not in crashedReplicas:
+                try:
+                    response = requests.get('http://'+rep+'/version-data')
+                    status = True
+                except:
+                    crashedReplicas.append(rep)
+                    status = False
+                if status is True:
+                    data = response.json()
+                    crashedReplicas = data[0]
+                    KeyValDict = data[1] #declaring dictionary
+                    VCDict =  data[2] #Declaring vector clock dictionary
+                    Q_Dict =  data[3] #Declaring Queue dictonary
+                    BigDict =  data[4] #Declaring Send data dictionary
+                    eventcounter =  data[5] #Counter incremented every PUT and DELETE
+                    store_count =  data[6]
+ 
+    def get(self):
+        global crashedReplicas
+        crashed = True
+        viewList = os.environ['VIEW']
+        rep = [os.getenv('VIEW'), 0]
+        replicas = rep[0].split(",")
+        if request.remote_addr == '10.10.0.1':
+            for reps in crashedReplicas:
+                try:
+                    response = requests.get('http://'+reps+'/key-value-store-view')
+                    responseJson = response.json()
+                    crashed = False
+                except:
+                    crashed = True
+                    print("error in get")
+                if crashed is False:        
+                    if rep not in replicas:
+                        viewList = os.environ['VIEW'] + ',' + reps
+                    for view in replicas:
+                        requests.put('http://' + view + '/version-data', json = {'view': viewList}, timeout = 10)
+                    requests.put('http://' + reps + '/version-data', json={'view': viewList}, timeout = 10)
+                    crashedReplicas.remove(reps)
             return make_response(jsonify({
-                'error' : 'Socket address already exists in the view',
-                'message' : 'Error in PUT'
-            }), 404)
-    #if not already exist in view then add it to view
-    requests.put('http://'+SOCKET_ADDRESS+'/key-value-store-view/', json=repl, timeout = 10)
-    replicas = replicas.append(repl)
-    return make_response(jsonify({
-        'message' : 'Replica added successfully to the view'
-    }), 201)
-# class viewHandler(Resource):
-#     SOCKET_ADDRESS = os.environ.get('SOCKET_ADDRESS')
-# #@app.route('/key-value-store-view', methods=['PUT'])
-#     def put(self):
-#         #global eventcounter
-#         #enter the main container, else enter forwarding container
-#         if SOCKET_ADDRESS is None:
-#             #Need to check if there is no <value> given first
-#             value = request.get_json()
-#             value = value.get('socket-address')
-#             if value is None:
-#                 return make_response(jsonify(
-#                     error='Value is missing',
-#                     message='Error in PUT',
-#                 ),400)
-#             # if len(key) > 50:
-#             #     return jsonify(
-#             #         error='Key is too long',
-#             #         message='Error in PUT',
-#             #     ),400
-#             #Update Value of key here
-#             # KeyValDict[key] = request.values.get('value')
-#             if SOCKET_ADDRESS not in replicas:
-#             # KeyValDict[str(key)] = value
-#                 #eventcounter += 1
-#                 return make_response(jsonify(
-#                     message="Replica added successfully to the view",
-#                 ), 201) #test script says this is 201
-#             elif SOCKET_ADDRESS in replicas:
-#                 return make_response(jsonify(
-#                 error='Socket address already exists in the view',
-#                 message='Error in PUT'
-#                 ), 404)
-#         elif SOCKET_ADDRESS in os.environ:
-#             try:
-#                 value = request.get_json()
-#                 req = requests.put('http://'+SOCKET_ADDRESS+'/key-value-store-view/', json=value, timeout = 10)
-#                 return req.json(),req.status_code   
-#             except:
-#                 return make_response(jsonify(
-#                     error= 'Main instance is down', 
-#                     message = 'Error in PUT'
-#                 ), 503)
-#             else:
-#                 return req.json(),req.status_code
-#         #Need to broadcast to other replicas
-#         #Updating their data
-#         amntreplicas = len(replicas)
-#         for i in range(amntreplicas):
-#             try:
-#                 value = request.get_json()
-#                 req = requests.put('http://'+replicas[i]+'/key-value-store-view/', json=value, timeout = 10)
-#                 return req.json(),req.status_code
-#             except:
-#                 return make_response(jsonify(
-#                     error= 'Main instance is down', 
-#                     message = 'Error in PUT'
-#                 ), 503)
-#             else:
-#                 return req.json(),req.status_code
-#     #@app.route('/key-value-store-view', methods=['GET'])
-#     # def get(self):
-#     #     #Concatenates List of strings...
-#     #     repstr = ','.join(replicas)
-#     #     return make_response(jsonify(
-#     #         message='View Retrieved successfully',
-#     #         view=repstr
-#     #     ), 200)
+                'message' : 'View retrieved successfully',
+                'view' : viewList
+                }), 200)
+               
+    def put(self):
+        rep = [os.getenv('VIEW'), 0]
+        replicas = rep[0].split(",")
+        value = request.get_json()
+        SOCKET_ADDRESS = value.get('socket-address')
+        if SOCKET_ADDRESS is None:
+            return make_response(jsonify(
+                error='Socket address is missing', 
+                message= 'Error in PUT'
+                ), 400)
+        if SOCKET_ADDRESS is not None:
+            if SOCKET_ADDRESS in replicas:
+                return make_response(jsonify(
+                    error='Socket address already exists in the view',
+                    message='Error in PUT',
+                ),400)
+            else:
+                if SOCKET_ADDRESS in crashedReplicas:
+                        crashedReplicas.remove(SOCKET_ADDRESS)
+                os.environ['VIEW'] = os.environ['VIEW'] + ',' + SOCKET_ADDRESS
+                for key in KeyValDict:
+                    json = request.get_json()
+                    requests.put('http://' + SOCKET_ADDRESS + '/key-value-store-view/' + key, json=json, timeout = 10)
+                for view in replicas:
+                    try:
+                        requests.put('http://' + view + '/key-value-store-view/', json = {'socket-address': SOCKET_ADDRESS}, timeout = 10)
+                    except:
+                        print("error in put")
+                return make_response(jsonify(
+                    message= 'Replica added successfully to the view'
+                    ), 200)
 
-#         # elif SOCKET_ADDRESS in os.environ:
-#         #     try:
-#         #         req = requests.get('http://'+SOCKET_ADDRESS+'/key-value-store-view/' + key)
-#         #         return req.json(),req.status_code
-#         #     except:
-#         #         return jsonify(
-#         #             error= 'Main instance is down', 
-#         #             message = 'Error in GET'
-#         #             ), 503
+    def delete(self):
+        replicas = os.environ['VIEW'].split(',')
+        value = request.get_json()
+        SOCKET_ADDRESS = value.get('socket-address')
+        if SOCKET_ADDRESS not in replicas:
+            return make_response(jsonify(
+                error='Socket address does not exist in the view',
+                message='Error in DELETE'
+                ), 404)
+        if SOCKET_ADDRESS in replicas:
+            replicas.remove(SOCKET_ADDRESS)
+            if SOCKET_ADDRESS not in crashedReplicas:
+                crashedReplicas.append(SOCKET_ADDRESS)
+            new_view = ''
+            for i in range(len(replicas)-1):
+                new_view += replicas[i] + ','
+            new_view += replicas[len(replicas)-1]   
+            os.environ['VIEW'] = new_view
+            for view in replicas:
+                if view != os.environ['SOCKET_ADDRESS']:
+                    try:
+                        requests.delete('http://' + view + '/key-value-store-view', json = {'socket-address': SOCKET_ADDRESS}, timeout = 10)
+                    except:
+                        print("error in delete")
+                return make_response(jsonify(
+                    message='Replica deleted successfully from the view'
+                    ), 200)
 
-#     #@app.route('/key-value-store-view', methods=['DELETE'])
-#     def delete(self):
-#         value = request.get_json()
-#         value = value.get('socket-address')
 
-#         #global eventcounter
-#         if value is None:
-#             #if key not in KeyValDict:
-#                 return make_response(jsonify(
-#                     error='Socket address does not exist in the view',
-#                     message='Error in DELETE'
-#                 ), 404)
-#         elif value in replicas:
-#             requests.delete(value)
-#             # req = requests.delete(value)('http://'+SOCKET_ADDRESS+'/key-value-store-view/')# + key)
-#                 #return req.json(),req.status_code
-#             return make_response(jsonify(
-#                 message='Replica deleted successfully from the view'
-#             ), 200)
-#         else:
-#             return make_response(jsonify(
-#                     error='Socket address does not exist in the view',
-#                     message='Error in DELETE'
-#                 ), 404)
-# api.add_resource(viewHandler, '/key-value-store-view') 
+class VersionData(Resource):
+
+    def get(self):
+            return jsonify(crashedReplicas, KeyValDict, VCDict, Q_Dict, BigDict , eventcounter, store_count)
+
+    def put(self):
+        json = request.get_json()
+        views = json.get('view')
+        os.environ['VIEW'] = views
+
+    def delete(self):
+        crashedReplicas = []
+        KeyValDict = dict()
+        VCDict = dict()
+        Q_Dict = dict() 
+        BigDict = dict() 
+        eventcounter = 0 
+        store_count = 0
 
 #~~~~~~~~~~~~~~~~~~Key-Value-Store operations endpoint~~~~~~~~~~~~~~~~~~~
 
@@ -456,5 +464,8 @@ def deli(key):
         # increment vector clock of the replica that got the request from the cleint
         
         VCDict[replica] = VCDict[replica] + 1
+
+api.add_resource(Views, '/key-value-store-view')
+api.add_resource(VersionData, '/version-data')
 
 app.run(host=socket.gethostbyname(socket.gethostname()),port=8085,debug=True)
