@@ -1,4 +1,4 @@
-#assignment3.py
+#assignment4.py
 #Group: rsaefong@ucsc.edu, omnasser@ucsc.edu, dajli@ucsc.edu, rmjaureg@ucsc.edu
 
 from flask import Flask
@@ -395,7 +395,8 @@ def delete(key):
                 if SOCKET_ADDRESS != sockt:
                     requests.delete('http://'+sockt+'/to-replica/'+key, json=BigDict, timeout = 10)
         vector = ''
-        return vector
+        flagt=0
+        # return vector
         for sockt in replicas:
             if flagt == 1:
                 vector = vector + ','
@@ -406,9 +407,6 @@ def delete(key):
             'message' : 'Deleted successfully',
             'causal-metadata' : vector
         }), 200)
-<<<<<<< HEAD
-app.run(host=socket.gethostbyname(socket.gethostname()),port=8085,debug=True)
-=======
 
 @app.route('/to-replica/<key>', methods=['DELETE'])
 def deli(key):
@@ -430,10 +428,9 @@ def deli(key):
         Q_Dict[store_count] = Another_Dict
         store_count = store_count + 1
     else:
-        del KeyValc  Dict[key]
+        del KeyValDict[key]
         # increment vector clock of the replica that got the request from the cleint
         
         VCDict[replica] = VCDict[replica] + 1
 
 app.run(host=socket.gethostbyname(socket.gethostname()),port=8085,debug=True)
->>>>>>> 7df24d1e16ebb206047bacee46557541f626e6a7
