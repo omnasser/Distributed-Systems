@@ -49,110 +49,134 @@ def obtainer():
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~View Operations Endpoint~~~~~~~~~~~~~~~~~~~~~~~~
-class viewHandler(Resource):
-    SOCKET_ADDRESS = os.environ.get('SOCKET_ADDRESS')
-#@app.route('/key-value-store-view', methods=['PUT'])
-    def put(self):
-        #global eventcounter
-        #enter the main container, else enter forwarding container
-        if SOCKET_ADDRESS is None:
-            #Need to check if there is no <value> given first
-            value = request.get_json()
-            value = value.get('socket-address')
-            if value is None:
-                return make_response(jsonify(
-                    error='Value is missing',
-                    message='Error in PUT',
-                ),400)
-            # if len(key) > 50:
-            #     return jsonify(
-            #         error='Key is too long',
-            #         message='Error in PUT',
-            #     ),400
-            #Update Value of key here
-            # KeyValDict[key] = request.values.get('value')
-            if SOCKET_ADDRESS not in replicas:
-            # KeyValDict[str(key)] = value
-                #eventcounter += 1
-                return make_response(jsonify(
-                    message="Replica added successfully to the view",
-                ), 201) #test script says this is 201
-            elif SOCKET_ADDRESS in replicas:
-                return make_response(jsonify(
-                error='Socket address already exists in the view',
-                message='Error in PUT'
-                ), 404)
-        elif SOCKET_ADDRESS in os.environ:
-            try:
-                value = request.get_json()
-                req = requests.put('http://'+SOCKET_ADDRESS+'/key-value-store-view/', json=value, timeout = 10)
-                return req.json(),req.status_code   
-            except:
-                return make_response(jsonify(
-                    error= 'Main instance is down', 
-                    message = 'Error in PUT'
-                ), 503)
-            else:
-                return req.json(),req.status_code
-        #Need to broadcast to other replicas
-        #Updating their data
-        amntreplicas = len(replicas)
-        for i in range(amntreplicas):
-            try:
-                value = request.get_json()
-                req = requests.put('http://'+replicas[i]+'/key-value-store-view/', json=value, timeout = 10)
-                return req.json(),req.status_code
-            except:
-                return make_response(jsonify(
-                    error= 'Main instance is down', 
-                    message = 'Error in PUT'
-                ), 503)
-            else:
-                return req.json(),req.status_code
-    #@app.route('/key-value-store-view', methods=['GET'])
-    # def get(self):
-    #     #Concatenates List of strings...
-    #     repstr = ','.join(replicas)
-    #     return make_response(jsonify(
-    #         message='View Retrieved successfully',
-    #         view=repstr
-    #     ), 200)
+@app.route('/key-value-store-view/', methods=['GET'])
+def getview():
+    return make_response(jsonify({
+        'message' : 'View retrieved successfully',
+        'view' : replicas
+    }), 200)
 
-        # elif SOCKET_ADDRESS in os.environ:
-        #     try:
-        #         req = requests.get('http://'+SOCKET_ADDRESS+'/key-value-store-view/' + key)
-        #         return req.json(),req.status_code
-        #     except:
-        #         return jsonify(
-        #             error= 'Main instance is down', 
-        #             message = 'Error in GET'
-        #             ), 503
+@app.route('/key-value-store-view/', methods=['PUT'])
+def putview():
+    global replicas
+    data = request.get_json()
+    repl = data['socket-address']
+    for sockt in replicas:
+        if repl == sockt:
+            return make_response(jsonify({
+                'error' : 'Socket address already exists in the view',
+                'message' : 'Error in PUT'
+            }), 404)
+    #if not already exist in view then add it to view
+    requests.put('http://'+SOCKET_ADDRESS+'/key-value-store-view/', json=repl, timeout = 10)
+    replicas = replicas.append(repl)
+    return make_response(jsonify({
+        'message' : 'Replica added successfully to the view'
+    }), 201)
+# class viewHandler(Resource):
+#     SOCKET_ADDRESS = os.environ.get('SOCKET_ADDRESS')
+# #@app.route('/key-value-store-view', methods=['PUT'])
+#     def put(self):
+#         #global eventcounter
+#         #enter the main container, else enter forwarding container
+#         if SOCKET_ADDRESS is None:
+#             #Need to check if there is no <value> given first
+#             value = request.get_json()
+#             value = value.get('socket-address')
+#             if value is None:
+#                 return make_response(jsonify(
+#                     error='Value is missing',
+#                     message='Error in PUT',
+#                 ),400)
+#             # if len(key) > 50:
+#             #     return jsonify(
+#             #         error='Key is too long',
+#             #         message='Error in PUT',
+#             #     ),400
+#             #Update Value of key here
+#             # KeyValDict[key] = request.values.get('value')
+#             if SOCKET_ADDRESS not in replicas:
+#             # KeyValDict[str(key)] = value
+#                 #eventcounter += 1
+#                 return make_response(jsonify(
+#                     message="Replica added successfully to the view",
+#                 ), 201) #test script says this is 201
+#             elif SOCKET_ADDRESS in replicas:
+#                 return make_response(jsonify(
+#                 error='Socket address already exists in the view',
+#                 message='Error in PUT'
+#                 ), 404)
+#         elif SOCKET_ADDRESS in os.environ:
+#             try:
+#                 value = request.get_json()
+#                 req = requests.put('http://'+SOCKET_ADDRESS+'/key-value-store-view/', json=value, timeout = 10)
+#                 return req.json(),req.status_code   
+#             except:
+#                 return make_response(jsonify(
+#                     error= 'Main instance is down', 
+#                     message = 'Error in PUT'
+#                 ), 503)
+#             else:
+#                 return req.json(),req.status_code
+#         #Need to broadcast to other replicas
+#         #Updating their data
+#         amntreplicas = len(replicas)
+#         for i in range(amntreplicas):
+#             try:
+#                 value = request.get_json()
+#                 req = requests.put('http://'+replicas[i]+'/key-value-store-view/', json=value, timeout = 10)
+#                 return req.json(),req.status_code
+#             except:
+#                 return make_response(jsonify(
+#                     error= 'Main instance is down', 
+#                     message = 'Error in PUT'
+#                 ), 503)
+#             else:
+#                 return req.json(),req.status_code
+#     #@app.route('/key-value-store-view', methods=['GET'])
+#     # def get(self):
+#     #     #Concatenates List of strings...
+#     #     repstr = ','.join(replicas)
+#     #     return make_response(jsonify(
+#     #         message='View Retrieved successfully',
+#     #         view=repstr
+#     #     ), 200)
 
-    #@app.route('/key-value-store-view', methods=['DELETE'])
-    def delete(self):
-        value = request.get_json()
-        value = value.get('socket-address')
+#         # elif SOCKET_ADDRESS in os.environ:
+#         #     try:
+#         #         req = requests.get('http://'+SOCKET_ADDRESS+'/key-value-store-view/' + key)
+#         #         return req.json(),req.status_code
+#         #     except:
+#         #         return jsonify(
+#         #             error= 'Main instance is down', 
+#         #             message = 'Error in GET'
+#         #             ), 503
 
-        #global eventcounter
-        if value is None:
-            #if key not in KeyValDict:
-                return make_response(jsonify(
-                    error='Socket address does not exist in the view',
-                    message='Error in DELETE'
-                ), 404)
-        elif value in replicas:
-            requests.delete(value)
-            # req = requests.delete(value)('http://'+SOCKET_ADDRESS+'/key-value-store-view/')# + key)
-                #return req.json(),req.status_code
-            return make_response(jsonify(
-                message='Replica deleted successfully from the view'
-            ), 200)
-        else:
-            return make_response(jsonify(
-                    error='Socket address does not exist in the view',
-                    message='Error in DELETE'
-                ), 404)
-api.add_resource(viewHandler, '/key-value-store-view') 
+#     #@app.route('/key-value-store-view', methods=['DELETE'])
+#     def delete(self):
+#         value = request.get_json()
+#         value = value.get('socket-address')
+
+#         #global eventcounter
+#         if value is None:
+#             #if key not in KeyValDict:
+#                 return make_response(jsonify(
+#                     error='Socket address does not exist in the view',
+#                     message='Error in DELETE'
+#                 ), 404)
+#         elif value in replicas:
+#             requests.delete(value)
+#             # req = requests.delete(value)('http://'+SOCKET_ADDRESS+'/key-value-store-view/')# + key)
+#                 #return req.json(),req.status_code
+#             return make_response(jsonify(
+#                 message='Replica deleted successfully from the view'
+#             ), 200)
+#         else:
+#             return make_response(jsonify(
+#                     error='Socket address does not exist in the view',
+#                     message='Error in DELETE'
+#                 ), 404)
+# api.add_resource(viewHandler, '/key-value-store-view') 
 
 #~~~~~~~~~~~~~~~~~~Key-Value-Store operations endpoint~~~~~~~~~~~~~~~~~~~
 
@@ -282,11 +306,11 @@ def put(key):
             vector = vector + temp
         if exist == 0:
             return make_response(jsonify({
-                'message' : 'Added Successfully',
+                'message' : 'Added successfully',
                 'causal-metadata' : vector
             }), 201)
         return make_response(jsonify({
-            'message' : 'Updated Successfully',
+            'message' : 'Updated successfully',
             'causal-metadata' : vector
         }), 200)
 
