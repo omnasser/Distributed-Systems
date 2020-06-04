@@ -42,11 +42,11 @@ headers = "Content-Type: application/json"
 #     VCDict[sockt] = 0
 
 ##########################################################################
-@app.route('/test-get/', methods=['GET'])
-def checker():
-    return replicas[0]
-def obtainer():
-    return 'Hello World'
+# @app.route('/test-get/', methods=['GET'])
+# def checker():
+#     return replicas[0]
+# def obtainer():
+#     return 'Hello World'
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~View Operations Endpoint~~~~~~~~~~~~~~~~~~~~~~~~
@@ -191,20 +191,35 @@ class VersionData(Resource):
 SOCKET_ADDRESS = os.environ.get('SOCKET_ADDRESS')
 
 def CompareClocks(meta):
+    rep = [os.getenv('VIEW'), 0]
+    replicas = rep[0].split(",")
+    for sockt in replicas:
+        if sockt not in VCDict:
+            VCDict[sockt] = 0
     if len(meta) is 0:
         return 0
     else:
-        meta_list = meta.split(',')
-   
+        try:
+            meta_list = meta.split(',')
         #opposite
-        index = 0
-        for replcount in replicas:
-            if int(meta_list[index]) > VCDict[replcount]:
+            index = 0
+            for replcount in replicas:
+                if int(meta_list[index]) > VCDict[replcount]:
+                    return -1
+                index = index + 1
+        except:
+            if int(meta) > VCDict[SOCKET_ADDRESS]:
                 return -1
-            index = index + 1
-        return 0
+    return 0
 
 def QueueCheckClient():
+    del_Dict = dict()
+    counter = 0
+    rep = [os.getenv('VIEW'), 0]
+    replicas = rep[0].split(",")
+    for sockt in replicas:
+        if sockt not in VCDict:
+            VCDict[sockt] = 0
     flag_loop = 1
     while(flag_loop is 1):
         flag_loop = 0
@@ -252,27 +267,34 @@ def QueueCheckClient():
                             for sock in replicas:
                                 if SOCKET_ADDRESS is not sock:
                                     req = requests.put('http://'+sock+'/to-replica/' + key, json=BigDict, timeout = 10)
-                            return req.json(), req.status_code
-                del Q_Dict[indx]
+                            # return req.json(), req.status_code
+                del_Dict[counter] = indx
+                counter = counter + 1
+    
+    for thing1 in del_Dict:
+        temp = del_Dict[thing1]
+        del Q_Dict[temp]
 
 @app.route('/key-value-store/<key>', methods=['PUT'])
 def put(key):
+    global store_count
     rep = [os.getenv('VIEW'), 0]
-    replicas = test.split(",")
+    replicas = rep[0].split(",")
     for sockt in replicas:
-        VCDict[sockt] = 0
+        if sockt not in VCDict:
+            VCDict[sockt] = 0
 
 
-    vector = ''
-    flagt=0
+    # vector = ''
+    # flagt=0
+    # # return vector
+    # for sockt in replicas:
+    #     if flagt == 1:
+    #         vector = vector + ','
+    #     temp = sockt
+    #     flagt = 1
+    #     vector = vector + temp
     # return vector
-    for sockt in replicas:
-        if flagt == 1:
-            vector = vector + ','
-        temp = sockt
-        flagt = 1
-        vector = vector + temp
-    return vector
 
 
     exist = 0
@@ -288,10 +310,6 @@ def put(key):
         ),400
 
     store_flag = CompareClocks(meta)
-
-    #Check queue of replicas if empty
-    if not Q_Dict:
-        QueueCheckClient()
         
     # if -1 the incoming clock it to ahead
     if(store_flag == -1):
@@ -303,6 +321,23 @@ def put(key):
         #Small_Dict['type'] = string of put
         Q_Dict[store_count] = Small_Dict
         store_count = store_count + 1
+        flagt = 0
+        vector = ''
+        for sockt in replicas:
+            if flagt == 1:
+                vector = vector + ','
+            temp = str(VCDict[sockt])
+            flagt = 1
+            vector = vector + temp
+        if exist == 0:
+            return make_response(jsonify({
+                'message' : 'Added successfully',
+                'causal-metadata' : vector
+            }), 201)
+        return make_response(jsonify({
+            'message' : 'Updated successfully',
+            'causal-metadata' : vector
+        }), 200)
         
     else:
         #strore key and value
@@ -322,6 +357,9 @@ def put(key):
         for sockt in replicas:
             if SOCKET_ADDRESS != sockt:
                 requests.put('http://'+sockt+'/to-replica/'+key, json=BigDict, timeout = 10)
+        #Check queue of replicas if empty
+        if len(Q_Dict) !=0:
+            QueueCheckClient()
         flagt = 0
         vector = ''
         for sockt in replicas:
@@ -367,6 +405,7 @@ def QueueCheckReplica():
 
 @app.route('/to-replica/<key>', methods=['PUT'])
 def Qrep(key):
+    global store_count
     value2 = request.get_json()
     value = value2['value']
     meta = value2['causal-metadata']
@@ -398,9 +437,10 @@ def get(key):
     #need to check if key exists
 
     rep = [os.getenv('VIEW'), 0]
-    replicas = test.split(",")
+    replicas = rep[0].split(",")
     for sockt in replicas:
-        VCDict[sockt] = 0
+        if sockt not in VCDict:
+            VCDict[sockt] = 0
 
     if key in KeyValDict:
         val = KeyValDict[key]
@@ -426,16 +466,18 @@ def get(key):
 
 @app.route('/key-value-store/<key>', methods=['DELETE'])
 def delete(key):
+    global store_count
     rep = [os.getenv('VIEW'), 0]
-    replicas = test.split(",")
+    replicas = rep[0].split(",")
     for sockt in replicas:
-        VCDict[sockt] = 0
+        if sockt not in VCDict:
+            VCDict[sockt] = 0
 
     value2 = request.get_json()
     meta = value2['causal-metadata']
     store_flg = CompareClocks(meta)
-    if not Q_Dict:
-        QueueCheckClient()
+    # if not Q_Dict:
+    #     QueueCheckClient()
     if store_flg == -1:
         Small_Dict = dict()
         Small_Dict['causal-metadata'] = meta
@@ -443,6 +485,19 @@ def delete(key):
         Small_Dict['type'] = 'delete'
         Q_Dict[store_count] = Small_Dict
         store_count = store_count + 1
+        vector = ''
+        flagt=0
+        # return vector
+        for sockt in replicas:
+            if flagt == 1:
+                vector = vector + ','
+            temp = str(VCDict[sockt])
+            flagt = 1
+            vector = vector + temp
+        return make_response(jsonify({
+            'message' : 'Deleted successfully',
+            'causal-metadata' : vector
+        }), 200)
     else:
         del KeyValDict[key]
         for sockt in replicas:          
@@ -455,6 +510,9 @@ def delete(key):
         for sockt in replicas:
                 if SOCKET_ADDRESS != sockt:
                     requests.delete('http://'+sockt+'/to-replica/'+key, json=BigDict, timeout = 10)
+        #Check queue of replicas if empty
+        if not Q_Dict:
+            QueueCheckClient()
         vector = ''
         flagt=0
         # return vector
@@ -471,6 +529,7 @@ def delete(key):
 
 @app.route('/to-replica/<key>', methods=['DELETE'])
 def deli(key):
+    global store_count
     value2 = request.get_json()
     meta = value2['causal-metadata']
     replica = value2['sockt']

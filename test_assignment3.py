@@ -13,7 +13,7 @@ import time
 import os
 
 ######################## initialize variables ################################################
-subnetName = "assignment3-net"
+subnetName = "assignment4-net"
 subnetAddress = "10.10.0.0/16"
 
 replica1Ip = "10.10.0.2"
