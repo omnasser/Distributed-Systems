@@ -28,18 +28,18 @@ headers = "Content-Type: application/json"
 
 
 #sets each replica's VC to 0
-rep = [os.getenv('VIEW'), 0]
-#does not run without this
-test = "10.10.0.2:8085,10.10.0.3:8085,10.10.0.4:8085,10.10.0.5:8085,10.10.0.6:8085,10.10.0.7:8085"
-replicas = test.split(",")
+# rep = [os.getenv('VIEW'), 0]
+# #does not run without this
+# test = "10.10.0.2:8085,10.10.0.3:8085,10.10.0.4:8085,10.10.0.5:8085,10.10.0.6:8085,10.10.0.7:8085"
+# replicas = test.split(",")
 # replicas = [os.getenv('VIEW'), 0]
 # for sockt in rep:
     # replicas = sockt.split(",")#.split(',')] #List of replicas set to 0 if null
     # replicas = rep.split(",")
 # for sockt in replicas:
 #     replicas = sockt.split(",")
-for sockt in replicas:
-    VCDict[sockt] = 0
+# for sockt in replicas:
+#     VCDict[sockt] = 0
 
 ##########################################################################
 @app.route('/test-get/', methods=['GET'])
@@ -257,6 +257,24 @@ def QueueCheckClient():
 
 @app.route('/key-value-store/<key>', methods=['PUT'])
 def put(key):
+    rep = [os.getenv('VIEW'), 0]
+    replicas = test.split(",")
+    for sockt in replicas:
+        VCDict[sockt] = 0
+
+
+    vector = ''
+    flagt=0
+    # return vector
+    for sockt in replicas:
+        if flagt == 1:
+            vector = vector + ','
+        temp = sockt
+        flagt = 1
+        vector = vector + temp
+    return vector
+
+
     exist = 0
     if key in KeyValDict:
         exist = 1
@@ -378,6 +396,12 @@ def Qrep(key):
 @app.route('/key-value-store/<key>', methods=['GET'])
 def get(key):
     #need to check if key exists
+
+    rep = [os.getenv('VIEW'), 0]
+    replicas = test.split(",")
+    for sockt in replicas:
+        VCDict[sockt] = 0
+
     if key in KeyValDict:
         val = KeyValDict[key]
         flagt = 0
@@ -402,6 +426,11 @@ def get(key):
 
 @app.route('/key-value-store/<key>', methods=['DELETE'])
 def delete(key):
+    rep = [os.getenv('VIEW'), 0]
+    replicas = test.split(",")
+    for sockt in replicas:
+        VCDict[sockt] = 0
+
     value2 = request.get_json()
     meta = value2['causal-metadata']
     store_flg = CompareClocks(meta)
