@@ -26,7 +26,8 @@ headers = "Content-Type: application/json"
 #Want to use dict which is Python HashTable
 #want to check if something in dictionary (if key in dict)
 
-
+shardlist = []
+shard_Dict = dict()
 #sets each replica's VC to 0
 # rep = [os.getenv('VIEW'), 0]
 # #does not run without this
@@ -552,6 +553,18 @@ def deli(key):
         # increment vector clock of the replica that got the request from the cleint
         
         VCDict[replica] = VCDict[replica] + 1
+
+@app.route('/key-value-store-shard/<shard-ids>', methods=['GET'])
+def shardget(key):
+    if not shardlist:
+        shardlist = shardlist + key
+    else:
+        shardlist = shardlist + ',' + key
+    
+    return make_response(jsonify({
+            'message' : 'Shard ID of the node retrieved successfully',
+            'shard-id' : shardlist
+        }), 200)
 
 api.add_resource(Views, '/key-value-store-view')
 api.add_resource(VersionData, '/version-data')
