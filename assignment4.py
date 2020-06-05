@@ -301,27 +301,62 @@ def put(key):
         if sockt not in VCDict:
             VCDict[sockt] = 0
 
+
+
+
+    eo_count = 0
+    even = dict()
+    odd = dict()
+
+    new_view = [os.getenv('VIEW'), 0]
+    new_replicas = new_view[0].split(",")
+
+    for node in new_replicas:
+        temp = node
+        left_of_colen = temp.split(":")
+        little_l = left_of_colen[0].split(".")
+        spot = little_l[3]
+        if int(spot) % 2 != 0:
+            odd[eo_count] = node
+            eo_count = eo_count + 1
+        elif int(spot) % 2 == 0:
+            even[eo_count] = node
+            eo_count = eo_count + 1
+
+
+
     stringret = ""
+    flag_shard = 1
     temp = SOCKET_ADDRESS
     left_of_colen = temp.split(":")
     little_l = left_of_colen[0].split(".")
     spot = little_l[3]
     if int(spot) % 2 == 0:
         stringret = str(2)
+        flag_shard = 2
         
     elif int(spot) % 2 != 0:
         stringret = str(1)
+        flag_shard = 1
 
-    # vector = ''
-    # flagt=0
-    # # return vector
-    # for sockt in replicas:
-    #     if flagt == 1:
-    #         vector = vector + ','
-    #     temp = sockt
-    #     flagt = 1
-    #     vector = vector + temp
-    # return vector
+        hash_num = hash(key)
+
+    if hash_num % 2 != 0:  # shard 1, key must go to odds shard 1
+
+        if flag_shard == 1:
+            # add to own dic then broadcst to odd
+
+        elif flag_shard == 2:
+            # broadcast to odd/ dont add to own dic
+    elif hash_num % 2 == 0 # shard t, key goes to evens
+        if flag_shard == 1:
+            # dont add to own dic/ broadcast to even 
+
+        elif flag_shard == 2:
+            
+            # add to own dic then broadcst to even
+
+
 
 
     exist = 0
@@ -583,19 +618,6 @@ def deli(key):
         # increment vector clock of the replica that got the request from the cleint
         
         VCDict[replica] = VCDict[replica] + 1
-
-# @app.route('/key-value-store-shard/<shard-ids>', methods=['GET'])
-# def shardget(key):
-#     if not shardlist:
-#         shardlist = shardlist + key
-#     else:
-#         shardlist = shardlist + ',' + key
-    
-#     return make_response(jsonify({
-#             'message' : 'Shard ID of the node retrieved successfully',
-#             'shard-id' : shardlist
-#         }), 200)
-
 
 
 @app.route('/key-value-store-shard/shard-ids', methods=['GET'])
