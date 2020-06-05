@@ -26,7 +26,7 @@ headers = "Content-Type: application/json"
 #Want to use dict which is Python HashTable
 #want to check if something in dictionary (if key in dict)
 
-shardlist = []
+
 shard_Dict = dict()
 #sets each replica's VC to 0
 # rep = [os.getenv('VIEW'), 0]
@@ -48,6 +48,22 @@ shard_Dict = dict()
 #     return replicas[0]
 # def obtainer():
 #     return 'Hello World'
+
+shardlist = ["1","2"]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~View Operations Endpoint~~~~~~~~~~~~~~~~~~~~~~~~
@@ -554,17 +570,194 @@ def deli(key):
         
         VCDict[replica] = VCDict[replica] + 1
 
-@app.route('/key-value-store-shard/<shard-ids>', methods=['GET'])
-def shardget(key):
-    if not shardlist:
-        shardlist = shardlist + key
-    else:
-        shardlist = shardlist + ',' + key
+# @app.route('/key-value-store-shard/<shard-ids>', methods=['GET'])
+# def shardget(key):
+#     if not shardlist:
+#         shardlist = shardlist + key
+#     else:
+#         shardlist = shardlist + ',' + key
     
+#     return make_response(jsonify({
+#             'message' : 'Shard ID of the node retrieved successfully',
+#             'shard-id' : shardlist
+#         }), 200)
+
+
+
+@app.route('/key-value-store-shard/shard-ids', methods=['GET'])
+def get()
     return make_response(jsonify({
-            'message' : 'Shard ID of the node retrieved successfully',
-            'shard-id' : shardlist
+            'message' : 'Shard IDs retrieved successfully',
+            'shard-ids' : shardlist
         }), 200)
+    
+
+@app.route('/key-value-store-shard/shard-id-members/<shard_id>', methods=['GET'])
+def get(shard_id)
+    new_view = [os.getenv('VIEW'), 0]
+    new_replicas = new_view[0].split(",")
+    v_out = ""
+    flagt = 0
+
+    if int(shard_id) == 1:
+        for node in new_replicas:
+            temp = node
+            left_of_colen = temp.split(":")
+            little_l = left_of_colen[0].split(",")
+            spot = little_l[3]
+            if int(spot) % 2 != 0:
+                if flagt == 0:
+                    v_out = v_out
+                    flagt = 1 
+                v_out = "," + v_out
+        return make_response(jsonify({
+            'message' : 'Members of shard ID retrieved successfully',
+            'shard-id-members' : v_out
+        }), 200)
+
+    elif int(shard_id) == 2:
+        for node in new_replicas:
+            temp = node
+            left_of_colen = temp.split(":")
+            little_l = left_of_colen[0].split(",")
+            spot = little_l[3]
+            if int(spot) % 2 == 0:
+                if flagt == 0:
+                    v_out = v_out
+                    flagt = 1 
+                v_out = "," + v_out
+        return make_response(jsonify({
+            'message' : 'Members of shard ID retrieved successfully',
+            'shard-id-members' : v_out
+        }), 200)
+
+
+@app.route('/key-value-store-shard/node-shard-id', methods=['GET'])
+def get()
+    #if sockeete_adress is even
+        # return 2
+    #else 
+        #rturn 1
+    temp = SOCKET_ADDRESS
+    left_of_colen = temp.split(":")
+    little_l = left_of_colen[0].split(",")
+    spot = little_l[3]
+    if int(spot) % 2 == 0:
+        shardy = str(2)
+        return make_response(jsonify({
+            'message' : 'Shard ID of the node retrieved successfully',
+            'shard-id-members' : shardy
+        }), 200)
+
+    elif int(spot) % 2 != 0:
+        shardy = str(1)
+        return make_response(jsonify({
+            'message' : 'Shard ID of the node retrieved successfully',
+            'shard-id-members' : shardy
+        }), 200)
+
+
+@app.route('/key-value-store-shard/shard-id-key-count/', methods=['GET'])
+def get(shard)
+    hood = int(shard)
+    to_count = 0
+    eo_count = 0
+    even = dict()
+    odd = dict()
+
+    new_view = [os.getenv('VIEW'), 0]
+    new_replicas = new_view[0].split(",")
+
+    for node in new_replicas:
+        temp = node
+        left_of_colen = temp.split(":")
+        little_l = left_of_colen[0].split(",")
+        spot = little_l[3]
+        if int(spot) % 2 != 0:
+            odd[eo_count] = node
+            eo_count = eo_count + 1
+        elif int(spot) % 2 == 0:
+            even[eo_count] = node
+            eo_count = eo_count + 1
+
+    if hood == 1:
+        temp = SOCKET_ADDRESS
+        left_of_colen = temp.split(":")
+        little_l = left_of_colen[0].split(",")
+        spot = little_l[3]
+        if int(spot) % 2 != 0: # hood == 1
+            to_count = len(KeyValDict)
+            # for indx in KeyValDict: # counts keys in SOCKET_ADRESS
+            #     to_count = to_count + 1
+            for nodes in odd:
+                response = requests.get( 'http://' + nodes + '/neighbor-door', timeout = 10)
+                responseInJson = response.json()
+                KeyCount = int(responseInJson['key-amount'])
+                to_count = to_count + KeyCount
+
+            to_key = str(to_count)
+            return make_response(jsonify({
+                    'message' : 'Key count of shard ID retrieved successfully',
+                    'shard-id-key-count' : to_key
+                }), 200)
+
+        elif int(spot) % 2 == 0:
+            for nodes in odd:
+                response = requests.get( 'http://' + nodes + '/neighbor-door', timeout = 10)
+                responseInJson = response.json()
+                KeyCount = int(responseInJson['key-amount'])
+                to_count = to_count + KeyCount
+
+            to_key = str(to_count)
+            return make_response(jsonify({
+                    'message' : 'Key count of shard ID retrieved successfully',
+                    'shard-id-key-count' : to_key
+                }), 200)
+
+    elif hood == 2:
+        temp = SOCKET_ADDRESS
+        left_of_colen = temp.split(":")
+        little_l = left_of_colen[0].split(",")
+        spot = little_l[3]
+        if int(spot) % 2 == 0: # hood == 1
+            to_count = len(KeyValDict)
+            # for indx in KeyValDict: # counts keys in SOCKET_ADRESS
+            #     to_count = to_count + 1
+            for nodes in even:
+                response = requests.get( 'http://' + nodes + '/neighbor-door', timeout = 10)
+                responseInJson = response.json()
+                KeyCount = int(responseInJson['key-amount'])
+                to_count = to_count + KeyCount
+
+            to_key = str(to_count)
+            return make_response(jsonify({
+                    'message' : 'Key count of shard ID retrieved successfully',
+                    'shard-id-key-count' : to_key
+                }), 200)
+
+        elif int(spot) % 2 != 0:
+            for nodes in even:
+                response = requests.get( 'http://' + nodes + '/neighbor-door', timeout = 10)
+                responseInJson = response.json()
+                KeyCount = int(responseInJson['key-amount'])
+                to_count = to_count + KeyCount
+
+            to_key = str(to_count)
+            return make_response(jsonify({
+                    'message' : 'Key count of shard ID retrieved successfully',
+                    'shard-id-key-count' : to_key
+                }), 200)
+    
+@app.route('/neighbor-door', methods=['GET'])
+def  get()
+    to_count = 0
+    to_count = len(KeyValDict)
+    to_key = str(to_count)
+
+    return make_response(jsonify({
+            'key-amount' : to_key
+        }), 200)
+
 
 api.add_resource(Views, '/key-value-store-view')
 api.add_resource(VersionData, '/version-data')
