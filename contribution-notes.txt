@@ -1,6 +1,6 @@
 dajli- worked on code for views and participated in pair programming with the other members to try and implement causual consistency. Fixed some of the view code from assignment 3 and tried to implement adding a new node to the view 
 omnasser- attempted to help fix errors in GET,PUT requests, gave ideas, helped debug. Fixed errors from assignment 3 and debugged assignment 4
-rmjaureg- worked on code for consistency and put, debugging all that good stuff
+rmjaureg- worked on code for consistency and put, debugging all that good stuff. Worked on completing assignment 3 (GET, PUT, DELETE), worked on completing shard functions (Shard-id, shard-members, etc).
 rsaefong- Worked on code for sharding the key value store PUT, reshard, impossible reshard and debugging
 
 NOTES: We began with planning together and creating pseudocode on how we would code each part of the assignment.  We collaborated via calls during 
