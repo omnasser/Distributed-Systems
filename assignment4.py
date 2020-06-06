@@ -800,6 +800,8 @@ def putreshard():
     s_count = value2['shard-count']
     if s_count >= 10:
         return make_response(jsonify({}), 400)
+    else:
+        return make_response(jsonify({}), 200)
 
 
 @app.route('/key-value-store-shard/shard-id-key-count/<shard>', methods=['GET'])
