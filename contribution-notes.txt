@@ -1,7 +1,7 @@
 dajli- worked on code for views and participated in pair programming with the other members to try and implement causual consistency. 
 omnasser- attempted to help fix errors in GET,PUT requests, gave ideas, helped debug
 rmjaureg- worked on code for consistency and put, debugging all that good stuff
-rsaefong- Worked on code to keep causal consistency, debugging on view, code to get, put, and delete from replicas
+rsaefong- Worked on code for sharding the key value store PUT, reshard, impossible reshard and debugging
 
 NOTES: We began with planning together and creating pseudocode on how we would code each part of the assignment.  We collaborated via calls during 
 many coding sessions to feed eachother ideas and we had one person coding at a time whenever possible to prevent merge errors on git.
