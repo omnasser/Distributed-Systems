@@ -294,6 +294,11 @@ def QueueCheckClient():
 
 @app.route('/key-value-store/<key>', methods=['PUT'])
 def put(key):
+
+    value2 = request.get_json()
+    value = value2['value']
+    meta = value2['causal-metadata']
+
     
     rep = [os.getenv('VIEW'), 0]
     replicas = rep[0].split(",")
@@ -301,187 +306,122 @@ def put(key):
         if sockt not in VCDict:
             VCDict[sockt] = 0
 
-    value2 = request.get_json()
-    value = value2['value']
-    
 
+    hash_num = (hash(key)) % 2
 
-    #strore key and value
-    KeyValDict[key] = value
-    for sockt in replicas:          
-         if SOCKET_ADDRESS == sockt:
-             VCDict[sockt] = VCDict[sockt] + 1
+    shard_group = 0
 
-    flagt = 0
-    vector = ''
-    for sockt in replicas:
-        temp = str(VCDict[sockt])
-        if flagt == 0:
-            vector =  temp
-            flagt = 1
-        else:
-            vector = vector + "," + temp
+    if hash_num == 0:
+        shard_group = 2
+    elif hash_num != 0:
+        shard_group = 1
+
 
 
     stringret = ""
     flag_shard = 1
+
     temp = SOCKET_ADDRESS
     left_of_colen = temp.split(":")
     little_l = left_of_colen[0].split(".")
     spot = little_l[3]
     if int(spot) % 2 == 0:
         stringret = "2"
-        #flag_shard = 2
+        flag_shard = 2
         
     elif int(spot) % 2 != 0:
         stringret = "1"
-        #flag_shard = 1
+        flag_shard = 1
 
 
 
+    even = dict()
+    odd = dict()
+    eo_count = 0
 
-    return make_response(jsonify({
-            'message' : 'Added successfully',
-            'causal-metadata' : vector,
-            'shard-id' : stringret
-        }), 201)
-
-
-
-
-
-    # eo_count = 0
-    # even = dict()
-    # odd = dict()
-
-    # new_view = [os.getenv('VIEW'), 0]
-    # new_replicas = new_view[0].split(",")
-
-    # for node in new_replicas:
-    #     temp = node
-    #     left_of_colen = temp.split(":")
-    #     little_l = left_of_colen[0].split(".")
-    #     spot = little_l[3]
-    #     if int(spot) % 2 != 0:
-    #         odd[eo_count] = node
-    #         eo_count = eo_count + 1
-    #     elif int(spot) % 2 == 0:
-    #         even[eo_count] = node
-    #         eo_count = eo_count + 1
+    for node in replicas:
+        temp = node
+        l_of_colen = temp.split(":")
+        l_l = l_of_colen[0].split(".")
+        spot = l_l[3]
+        if int(spot) % 2 != 0:
+            odd[eo_count] = node
+            eo_count = eo_count + 1
+        elif int(spot) % 2 == 0:
+            even[eo_count] = node
+            eo_count = eo_count + 1
 
 
 
-    # 
+    BigDict = dict()
+    BigDict['value'] = value
+    BigDict['causal-metadata'] = meta
 
-    #     hash_num = hash(key)
-
-    # if hash_num % 2 != 0:  # shard 1, key must go to odds shard 1
-
-    #     if flag_shard == 1:
-    #         # add to own dic then broadcst to odd
-
-    #     elif flag_shard == 2:
-    #         # broadcast to odd/ dont add to own dic
-    # elif hash_num % 2 == 0: # shard t, key goes to evens
-    #     if flag_shard == 1:
-    #         # dont add to own dic/ broadcast to even 
-
-    #     elif flag_shard == 2:
-            
-            # add to own dic then broadcst to even
-
-
-
-
-    # exist = 0
-    # if key in KeyValDict:
-    #     exist = 1
-    # value2 = request.get_json()
-    # value = value2['value']
-    # meta = value2['causal-metadata']
-    # if value is None:
-    #     
-
-    # store_flag = CompareClocks(meta)
-        
-    # if -1 the incoming clock it to ahead
-    # if(store_flag == -1):
-    #     Small_Dict = dict()
-    #     Small_Dict['value'] = value
-    #     Small_Dict['causal-metadata'] = meta
-    #     Small_Dict['key'] = key
-    #     Small_Dict['type'] = 'put'
-    #     #Small_Dict['type'] = string of put
-    #     Q_Dict[store_count] = Small_Dict
-    #     store_count = store_count + 1
-    #     flagt = 0
-    #     vector = ''
-    #     for sockt in replicas:
-    #         if flagt == 1:
-    #             vector = vector + ','
-    #         temp = str(VCDict[sockt])
-    #         flagt = 1
-    #         vector = vector + temp
-    #     if exist == 0:
-    #         return make_response(jsonify({
-    #             'message' : 'Added successfully',
-    #             'causal-metadata' : vector,
-    #             'shard-id' : stringret
-    #         }), 201)
-    #     return make_response(jsonify({
-    #         'message' : 'Updated successfully',
-    #         'causal-metadata' : vector,
-    #         'shard-id' : stringret
-    #     }), 200)
-        
-    # else:
-    #strore key and value
-    #KeyValDict[key] = value
-
-    # updating Vector clock
-    # for sockt in replicas:          
-    #     if SOCKET_ADDRESS == sockt:
-    #         VCDict[sockt] = VCDict[sockt] + 1
-
-    #         # loading meta data to send to broadcast to other replicas
-    #         BigDict['value'] = value
-    #         BigDict['causal-metadata'] = meta
-    #         BigDict['sockt'] = sockt
-    
-    #broadcsting to other replicas on end point "to-replica'"
-
-    # for sockt in replicas:
-    #     if SOCKET_ADDRESS != sockt:
-    #         requests.put('http://'+sockt+'/to-replica/'+key, json=BigDict, timeout = 10)
-
-    #Check queue of replicas if empty
-    # if len(Q_Dict) !=0:
-    #     QueueCheckClient()
-
-
-
-
-
-
-    # flagt = 0
-    # vector = ''
-    # for sockt in replicas:
-    #     if flagt == 1:
-    #         vector = vector + ','
-    #     temp = str(VCDict[sockt])
-    #     flagt = 1
-    #     vector = vector + temp
-    # if exist == 0:
-    #     return make_response(jsonify({
-    #         'message' : 'Added successfully',
-    #         'causal-metadata' : vector,
-    #         'shard-id' : stringret
-    #     }), 201)
     # return make_response(jsonify({
-    #     'message' : 'Updated successfully',
-    #     'causal-metadata' : vector,
-    #     'shard-id' : stringret
-    # }), 200)
+    #     'message' : 'Added successfully',
+    #     'causal-metadata' : meta,
+    #     'shard-id' : value
+    # }), 201)
+
+
+
+    if shard_group == 1:
+        if flag_shard == 1:
+            KeyValDict[key] = value
+            for nodes in odd.values():
+                if SOCKET_ADDRESS != nodes:
+                    requests.put('http://'+nodes+'/to-replica/'+key, json=BigDict, timeout = 10)
+
+            return make_response(jsonify({
+                'message' : 'Added successfully',
+                'causal-metadata' : meta,
+                'shard-id' : stringret
+            }), 201)
+
+        elif flag_shard == 2:
+            flag_once = 0
+            for nodes in odd.values():
+                if flag_once == 0:
+                        #response = requests.put('http://localhost:' +left_of_colen[1]+ '/key-value-store/key' + key, json={'value': "value" + value, "causal-metadata": meta}, timeout = 10)
+                    response = requests.put('http://'+nodes+'/pass-the-plate/'+key, json=BigDict, timeout = 10)
+                    responseInJson = response.json()
+                    flag_once = 1
+
+            return make_response(jsonify({
+                'message' : 'Added successfully',
+                'causal-metadata' : meta,
+                'shard-id' : stringret
+            }), 201)
+
+    elif shard_group == 2:
+        if flag_shard == 1:
+            flag_once = 0
+            for nodes in even.values():
+                if flag_once == 0:
+                        #response = requests.put('http://localhost:' +left_of_colen[1]+ '/key-value-store/key' + key, json={'value': "value" + value, "causal-metadata": meta}, timeout = 10)
+                    response = requests.put('http://'+nodes+'/pass-the-plate/'+key, json=BigDict, timeout = 10)
+                    responseInJson = response.json()
+                    flag_once = 1
+
+            return make_response(jsonify({
+                'message' : 'Added successfully',
+                'causal-metadata' : meta,
+                'shard-id' : stringret
+            }), 201)
+
+
+        elif flag_shard == 2:
+            KeyValDict[key] = value
+            for nodes in even.values():
+                if SOCKET_ADDRESS != nodes:
+                    requests.put('http://'+nodes+'/to-replica/'+key, json=BigDict, timeout = 10)
+
+            return make_response(jsonify({
+                'message' : 'Added successfully',
+                'causal-metadata' : meta,
+                'shard-id' : stringret
+            }), 201)
+
 
 def QueueCheckReplica():
     flag_loop = 1
@@ -514,28 +454,29 @@ def Qrep(key):
     value2 = request.get_json()
     value = value2['value']
     meta = value2['causal-metadata']
-    replica = value2['sockt']
+    KeyValDict[key] = value
+    #replica = value2['sockt']
 
-    store_flag = CompareClocks(meta)
+    # store_flag = CompareClocks(meta)
 
-    if not Q_Dict:
-        QueueCheckReplica()
+    # if not Q_Dict:
+    #     QueueCheckReplica()
 
-    if(store_flag == -1):
-        Another_Dict = dict()
-        Another_Dict['value'] = value
-        Another_Dict['meta'] = meta
-        Another_Dict['replica'] = replica
-        Another_Dict['key'] = key
-        Another_Dict['type'] = 'put'
-        Q_Dict[store_count] = Another_Dict
-        store_count = store_count + 1
-    else:
+    # if(store_flag == -1):
+    #     Another_Dict = dict()
+    #     Another_Dict['value'] = value
+    #     Another_Dict['meta'] = meta
+    #     Another_Dict['replica'] = replica
+    #     Another_Dict['key'] = key
+    #     Another_Dict['type'] = 'put'
+    #     Q_Dict[store_count] = Another_Dict
+    #     store_count = store_count + 1
+    # else:
         #store the key and value
-        KeyValDict[key] = value
+        
 
         # increment vector clock of the replica that got the request from the cleint
-        VCDict[replica] = VCDict[replica] + 1
+        # VCDict[replica] = VCDict[replica] + 1
 
 @app.route('/key-value-store/<key>', methods=['GET'])
 def get(key):
@@ -830,6 +771,13 @@ def nodeidget():
 #                     'shard-id-key-count' : to_key
 #                 }), 200)
     
+
+@app.route('/pass-the-plate/<key>', methods=['PUT'])
+def mongo(key):
+    return make_response(jsonify({
+        'message' : 'Added successfully'
+    }), 201)
+
 @app.route('/neighbor-door', methods=['GET'])
 def doorget():
     to_count = 0
