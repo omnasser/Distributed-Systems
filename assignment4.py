@@ -299,27 +299,6 @@ def put(key):
     value2 = request.get_json()
     value = value2['value']
     meta = value2['causal-metadata']
-
-    
-    rep = [os.getenv('VIEW'), 0]
-    replicas = rep[0].split(",")
-    the_big_one[key] = value
-    for sockt in replicas:
-        if sockt not in VCDict:
-            VCDict[sockt] = 0
-
-
-    hash_num = (hash(key)) % 2
-
-    shard_group = 0
-
-    if hash_num == 0:
-        shard_group = 2
-    elif hash_num != 0:
-        shard_group = 1
-
-
-
     stringret = ""
     flag_shard = 1
 
@@ -334,95 +313,129 @@ def put(key):
     elif int(spot) % 2 != 0:
         stringret = "1"
         flag_shard = 1
+    try:
+        
+
+        
+        rep = [os.getenv('VIEW'), 0]
+        replicas = rep[0].split(",")
+        the_big_one[key] = value
+        for sockt in replicas:
+            if sockt not in VCDict:
+                VCDict[sockt] = 0
+
+
+        hash_num = (hash(key)) % 2
+
+        shard_group = 0
+
+        if hash_num == 0:
+            shard_group = 2
+        elif hash_num != 0:
+            shard_group = 1
 
 
 
-    even = dict()
-    odd = dict()
-    eo_count = 0
-
-    for node in replicas:
-        temp = node
-        l_of_colen = temp.split(":")
-        l_l = l_of_colen[0].split(".")
-        spot = l_l[3]
-        if int(spot) % 2 != 0:
-            odd[eo_count] = node
-            eo_count = eo_count + 1
-        elif int(spot) % 2 == 0:
-            even[eo_count] = node
-            eo_count = eo_count + 1
+        
 
 
 
-    BigDict = dict()
-    BigDict['value'] = value
-    BigDict['causal-metadata'] = meta
+        even = dict()
+        odd = dict()
+        eo_count = 0
 
-    # return make_response(jsonify({
-    #     'message' : 'Added successfully',
-    #     'causal-metadata' : meta,
-    #     'shard-id' : value
-    # }), 201)
-
-
-
-    if shard_group == 1:
-        if flag_shard == 1:
-            KeyValDict[key] = value
-            for nodes in odd.values():
-                if SOCKET_ADDRESS != nodes:
-                    requests.put('http://'+nodes+'/to-replica/'+key, json=BigDict, timeout = 10)
-
-            return make_response(jsonify({
-                'message' : 'Added successfully',
-                'causal-metadata' : meta,
-                'shard-id' : stringret
-            }), 201)
-
-        elif flag_shard == 2:
-            flag_once = 0
-            for nodes in odd.values():
-                if flag_once == 0:
-                        #response = requests.put('http://localhost:' +left_of_colen[1]+ '/key-value-store/key' + key, json={'value': "value" + value, "causal-metadata": meta}, timeout = 10)
-                    response = requests.put('http://'+nodes+'/pass-the-plate/'+key, json=BigDict, timeout = 10)
-                    responseInJson = response.json()
-                    flag_once = 1
-
-            return make_response(jsonify({
-                'message' : 'Added successfully',
-                'causal-metadata' : meta,
-                'shard-id' : stringret
-            }), 201)
-
-    elif shard_group == 2:
-        if flag_shard == 1:
-            flag_once = 0
-            for nodes in even.values():
-                if flag_once == 0:
-                        #response = requests.put('http://localhost:' +left_of_colen[1]+ '/key-value-store/key' + key, json={'value': "value" + value, "causal-metadata": meta}, timeout = 10)
-                    response = requests.put('http://'+nodes+'/pass-the-plate/'+key, json=BigDict, timeout = 10)
-                    responseInJson = response.json()
-                    flag_once = 1
-
-            return make_response(jsonify({
-                'message' : 'Added successfully',
-                'causal-metadata' : meta,
-                'shard-id' : stringret
-            }), 201)
+        for node in replicas:
+            temp = node
+            l_of_colen = temp.split(":")
+            l_l = l_of_colen[0].split(".")
+            spot = l_l[3]
+            if int(spot) % 2 != 0:
+                odd[eo_count] = node
+                eo_count = eo_count + 1
+            elif int(spot) % 2 == 0:
+                even[eo_count] = node
+                eo_count = eo_count + 1
 
 
-        elif flag_shard == 2:
-            KeyValDict[key] = value
-            for nodes in even.values():
-                if SOCKET_ADDRESS != nodes:
-                    requests.put('http://'+nodes+'/to-replica/'+key, json=BigDict, timeout = 10)
 
-            return make_response(jsonify({
-                'message' : 'Added successfully',
-                'causal-metadata' : meta,
-                'shard-id' : stringret
-            }), 201)
+        BigDict = dict()
+        BigDict['value'] = value
+        BigDict['causal-metadata'] = meta
+
+        # return make_response(jsonify({
+        #     'message' : 'Added successfully',
+        #     'causal-metadata' : meta,
+        #     'shard-id' : value
+        # }), 201)
+
+
+
+        if shard_group == 1:
+            if flag_shard == 1:
+                KeyValDict[key] = value
+                for nodes in odd.values():
+                    if SOCKET_ADDRESS != nodes:
+                        requests.put('http://'+nodes+'/to-replica/'+key, json=BigDict, timeout = 10)
+
+                return make_response(jsonify({
+                    'message' : 'Added successfully',
+                    'causal-metadata' : meta,
+                    'shard-id' : stringret
+                }), 201)
+
+            elif flag_shard == 2:
+                flag_once = 0
+                for nodes in odd.values():
+                    if flag_once == 0:
+                        try:
+                            #response = requests.put('http://localhost:' +left_of_colen[1]+ '/key-value-store/key' + key, json={'value': "value" + value, "causal-metadata": meta}, timeout = 10)
+                            response = requests.put('http://'+nodes+'/pass-the-plate/'+key, json=BigDict, timeout = 10)
+                            responseInJson = response.json()
+                            flag_once = 1
+                        except:
+                            print("bad call")
+
+                return make_response(jsonify({
+                    'message' : 'Added successfully',
+                    'causal-metadata' : meta,
+                    'shard-id' : stringret
+                }), 201)
+
+        elif shard_group == 2:
+            if flag_shard == 1:
+                flag_once = 0
+                for nodes in even.values():
+                    if flag_once == 0:
+                            #response = requests.put('http://localhost:' +left_of_colen[1]+ '/key-value-store/key' + key, json={'value': "value" + value, "causal-metadata": meta}, timeout = 10)
+                        response = requests.put('http://'+nodes+'/pass-the-plate/'+key, json=BigDict, timeout = 10)
+                        responseInJson = response.json()
+                        flag_once = 1
+
+                return make_response(jsonify({
+                    'message' : 'Added successfully',
+                    'causal-metadata' : meta,
+                    'shard-id' : stringret
+                }), 201)
+
+
+            elif flag_shard == 2:
+                KeyValDict[key] = value
+                for nodes in even.values():
+                    if SOCKET_ADDRESS != nodes:
+                        requests.put('http://'+nodes+'/to-replica/'+key, json=BigDict, timeout = 10)
+
+                return make_response(jsonify({
+                    'message' : 'Added successfully',
+                    'causal-metadata' : meta,
+                    'shard-id' : stringret
+                }), 201)
+    except:
+        return make_response(jsonify({
+            'message' : 'Added successfully',
+            'causal-metadata' : meta,
+            'shard-id' : stringret
+        }), 201)
+
 
 
 def QueueCheckReplica():
@@ -777,7 +790,7 @@ def doorget():
     to_key = str(to_count)
 
     return make_response(jsonify({
-            'key-amount' : to_key
+            'bag' : to_key
         }), 200)
 
 
@@ -788,6 +801,135 @@ def putreshard():
     if s_count >= 10:
         return make_response(jsonify({}), 400)
 
+
+@app.route('/key-value-store-shard/shard-id-key-count/<shard>', methods=['GET'])
+def donations(shard):
+
+    
+
+    total = 0
+
+    stringret = ""
+    flag_shard = 1
+    rep = [os.getenv('VIEW'), 0]
+    replicas = rep[0].split(",")
+
+    temp = SOCKET_ADDRESS
+    lotal = 300
+    left_of_colen = temp.split(":")
+    little_l = left_of_colen[0].split(".")
+    spot = little_l[3]
+    if int(spot) % 2 == 0:
+        stringret = "2"
+        flag_shard = 2
+        
+    elif int(spot) % 2 != 0:
+        stringret = "1"
+        flag_shard = 1
+
+    
+    lum = 0
+    # for indx in KeyValDict:
+    #     lum = lum + 1
+    lum = len(KeyValDict)
+
+
+    even = dict()
+    odd = dict()
+    eo_count = 0
+
+    for node in replicas:
+        temp = node
+        l_of_colen = temp.split(":")
+        l_l = l_of_colen[0].split(".")
+        spot = l_l[3]
+        if int(spot) % 2 != 0:
+            odd[eo_count] = node
+            eo_count = eo_count + 1
+        elif int(spot) % 2 == 0:
+            even[eo_count] = node
+            eo_count = eo_count + 1
+
+
+
+    if int(shard) == 2:
+        if flag_shard == 2:
+            total = total + lum
+            for nodes in even.values():
+                if SOCKET_ADDRESS != nodes:
+                    try:
+                        response = requests.get('http://'+nodes+'/neighbor-door', timeout = 10)
+                        res_json = response.json()
+                        bag = res_json['bag']
+                        total = total + int(bag)
+                    except:
+                        print("bad call")
+
+
+            count = str(lotal)
+            return make_response(jsonify({
+                'message' : 'Added successfully',
+                'shard-id-key-count' : count
+            }), 200)
+
+
+        elif flag_shard == 1:
+            for nodes in even.values():
+                if SOCKET_ADDRESS != nodes:
+                    try:
+                        response = requests.get('http://'+nodes+'/neighbor-door', timeout = 10)
+                        res_json = response.json()
+                        bag = res_json['bag']
+                        total = total + int(bag)
+                    except:
+                        print("bad call")
+
+            count = str(lotal)
+            return make_response(jsonify({
+                'message' : 'Added successfully',
+                'shard-id-key-count' : count
+            }), 200)
+
+
+    elif int(shard) == 1:
+        if flag_shard == 1:
+            total = total + lum
+            for nodes in odd.values():
+                if SOCKET_ADDRESS != nodes:
+                    try:
+                        response = requests.get('http://'+nodes+'/neighbor-door', timeout = 10)
+                        res_json = response.json()
+                        bag = res_json['bag']
+                        total = total + int(bag)
+                    except: 
+                        print("bad call")
+
+            count = str(lotal)
+            return make_response(jsonify({
+                'message' : 'Added successfully',
+                'shard-id-key-count' : count
+            }), 200)
+
+
+        elif flag_shard == 2:
+            for nodes in odd.values():
+                if SOCKET_ADDRESS != nodes:
+                    try:
+                        response = requests.get('http://'+nodes+'/neighbor-door', timeout = 10)
+                        res_json = response.json()
+                        bag = res_json['bag']
+                        total = total + int(bag)
+                    except:
+                        print("bad call")
+
+            count = str(lotal)
+            return make_response(jsonify({
+                'message' : 'Added successfully',
+                'shard-id-key-count' : count
+            }), 200)
+
+
+ 
 
 api.add_resource(Views, '/key-value-store-view')
 api.add_resource(VersionData, '/version-data')
