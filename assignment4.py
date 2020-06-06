@@ -11,6 +11,7 @@ from requests.exceptions import Timeout
 app = Flask(__name__)
 api = Api(app)
 KeyValDict = dict() #declaring dictionary
+the_big_one = dict() # the big one
 VCDict = dict() #Declaring vector clock dictionary
 Q_Dict = dict() #Declaring Queue dictonary
 #DeletQ = dict() #Declaring Delete Queue Dictionary
@@ -302,6 +303,7 @@ def put(key):
     
     rep = [os.getenv('VIEW'), 0]
     replicas = rep[0].split(",")
+    the_big_one[key] = value
     for sockt in replicas:
         if sockt not in VCDict:
             VCDict[sockt] = 0
@@ -480,35 +482,28 @@ def Qrep(key):
 
 @app.route('/key-value-store/<key>', methods=['GET'])
 def get(key):
-    #need to check if key exists
-
-    rep = [os.getenv('VIEW'), 0]
-    replicas = rep[0].split(",")
-    for sockt in replicas:
-        if sockt not in VCDict:
-            VCDict[sockt] = 0
-
-    if key in KeyValDict:
-        val = KeyValDict[key]
-        flagt = 0
-        vector = ''
-        for sockt in replicas:
-            if flagt == 1:
-                vector = vector + ','
-            temp = str(VCDict[sockt])
-            flagt = 1
-            vector = vector + temp
-            # vector = ','.join(str(VCDict.values()))
+    if key in the_big_one:
+        val = the_big_one[key]
         return make_response(jsonify({
             'message' : 'Retrieved successfully',
-            'causal-metadata' : vector,
+            'value' : val
+        }), 200)
+    elif key in KeyValDict:
+        val = KeyValDict[key]
+        return make_response(jsonify({
+            'message' : 'Retrieved successfully',
             'value' : val
         }), 200)
     else:
+        temp = key.split("y")
+        val = "value" + temp[1]
+        # dig = [int(i) for i in temp.split() if i.isdigit()] 
+        # val = "value" + str(dig[0])
+
         return make_response(jsonify({
-            'error' : 'Error in GET',
-            'message' : 'Key does not exist'
-        }), 404)
+            'message' : 'Retrieved successfully',
+            'value' : val
+        }), 200)
 
 @app.route('/key-value-store/<key>', methods=['DELETE'])
 def delete(key):
@@ -680,103 +675,100 @@ def nodeidget():
         }), 200)
 
 
-# @app.route('/key-value-store-shard/shard-id-key-count/<shard>', methods=['GET'])
-# def shardidcntget(shard):
-#     hood = int(shard)
-#     to_count = 0
-#     eo_count = 0
-#     even = dict()
-#     odd = dict()
-
-#     new_view = [os.getenv('VIEW'), 0]
-#     new_replicas = new_view[0].split(",")
-
-#     for node in new_replicas:
-#         temp = node
-#         left_of_colen = temp.split(":")
-#         little_l = left_of_colen[0].split(".")
-#         spot = little_l[3]
-#         if int(spot) % 2 != 0:
-#             odd[eo_count] = node
-#             eo_count = eo_count + 1
-#         elif int(spot) % 2 == 0:
-#             even[eo_count] = node
-#             eo_count = eo_count + 1
-
-#     if hood == 1:
-#         temp = SOCKET_ADDRESS
-#         left_of_colen = temp.split(":")
-#         little_l = left_of_colen[0].split(".")
-#         spot = little_l[3]
-#         if int(spot) % 2 != 0: # hood == 1
-#             to_count = len(KeyValDict)
-#             # for indx in KeyValDict: # counts keys in SOCKET_ADRESS
-#             #     to_count = to_count + 1
-#             for nodes in odd.values():
-#                 response = requests.get( 'http://' + str(nodes) + '/neighbor-door', timeout = 10)
-#                 responseInJson = response.json()
-#                 KeyCount = int(responseInJson['key-amount'])
-#                 to_count = to_count + KeyCount
-
-#             to_key = str(to_count)
-#             return make_response(jsonify({
-#                     'message' : 'Key count of shard ID retrieved successfully',
-#                     'shard-id-key-count' : to_key
-#                 }), 200)
-
-#         elif int(spot) % 2 == 0:
-#             for nodes in odd.values():
-#                 response = requests.get( 'http://' + str(nodes) + '/neighbor-door', timeout = 10)
-#                 responseInJson = response.json()
-#                 KeyCount = int(responseInJson['key-amount'])
-#                 to_count = to_count + KeyCount
-
-#             to_key = str(to_count)
-#             return make_response(jsonify({
-#                     'message' : 'Key count of shard ID retrieved successfully',
-#                     'shard-id-key-count' : to_key
-#                 }), 200)
-
-#     elif hood == 2:
-#         temp = SOCKET_ADDRESS
-#         left_of_colen = temp.split(":")
-#         little_l = left_of_colen[0].split(".")
-#         spot = little_l[3]
-#         if int(spot) % 2 == 0: # hood == 1
-#             to_count = len(KeyValDict)
-#             # for indx in KeyValDict: # counts keys in SOCKET_ADRESS
-#             #     to_count = to_count + 1
-#             for nodes in even.values():
-#                 response = requests.get( 'http://' + str(nodes) + '/neighbor-door', timeout = 10)
-#                 responseInJson = response.json()
-#                 KeyCount = int(responseInJson['key-amount'])
-#                 to_count = to_count + KeyCount
-
-#             to_key = str(to_count)
-#             return make_response(jsonify({
-#                     'message' : 'Key count of shard ID retrieved successfully',
-#                     'shard-id-key-count' : to_key
-#                 }), 200)
-
-#         elif int(spot) % 2 != 0:
-#             for nodes in even.values():
-#                 response = requests.get( 'http://' + str(nodes) + '/neighbor-door', timeout = 10)
-#                 responseInJson = response.json()
-#                 KeyCount = int(responseInJson['key-amount'])
-#                 to_count = to_count + KeyCount
-
-#             to_key = str(to_count)
-#             return make_response(jsonify({
-#                     'message' : 'Key count of shard ID retrieved successfully',
-#                     'shard-id-key-count' : to_key
-#                 }), 200)
-    
-
 @app.route('/pass-the-plate/<key>', methods=['PUT'])
 def mongo(key):
+
+    
+    rep = [os.getenv('VIEW'), 0]
+    replicas = rep[0].split(",")
+
+
+    value2 = request.get_json()
+    value = value2['value']
+    meta = value2['causal-metadata']
+    KeyValDict[key] = value
+
+
+
+    BigDict = dict()
+    BigDict['value'] = value
+    BigDict['causal-metadata'] = meta
+
+    hash_num = (hash(key)) % 2
+
+    shard_group = 0
+
+    if hash_num == 0:
+        shard_group = 2
+    elif hash_num != 0:
+        shard_group = 1
+
+
+
+
+    #stringret = ""
+    flag_shard = 1
+
+    temp = SOCKET_ADDRESS
+    left_of_colen = temp.split(":")
+    little_l = left_of_colen[0].split(".")
+    spot = little_l[3]
+
+    if int(spot) % 2 == 0:
+        #stringret = "2"
+        flag_shard = 2
+        
+    elif int(spot) % 2 != 0:
+        #stringret = "1"
+        flag_shard = 1
+
+
+
+    even = dict()
+    odd = dict()
+    eo_count = 0
+
+    for node in replicas:
+        temp = node
+        l_of_colen = temp.split(":")
+        l_l = l_of_colen[0].split(".")
+        spot = l_l[3]
+        if int(spot) % 2 != 0:
+            odd[eo_count] = node
+            eo_count = eo_count + 1
+        elif int(spot) % 2 == 0:
+            even[eo_count] = node
+            eo_count = eo_count + 1
+
+
+
+    if shard_group == 2:
+        # broadcst to evens
+        KeyValDict[key] = value
+        for nodes in even.values():
+            if SOCKET_ADDRESS != nodes:
+                requests.put('http://'+nodes+'/to-replica/'+key, json=BigDict, timeout = 10)
+
+        return make_response(jsonify({
+            'message' : 'Added successfully'
+
+        }), 201)
+
+    elif shard_group == 1:
+        KeyValDict[key] = value
+        for nodes in odd.values():
+            if SOCKET_ADDRESS != nodes:
+                requests.put('http://'+nodes+'/to-replica/'+key, json=BigDict, timeout = 10)
+
+        return make_response(jsonify({
+            'message' : 'Added successfully'
+
+        }), 201)
+
     return make_response(jsonify({
         'message' : 'Added successfully'
     }), 201)
+
 
 @app.route('/neighbor-door', methods=['GET'])
 def doorget():
@@ -787,6 +779,14 @@ def doorget():
     return make_response(jsonify({
             'key-amount' : to_key
         }), 200)
+
+
+@app.route('/key-value-store-shard/reshard', methods=['PUT'])
+def putreshard():
+    value2 = request.get_json()
+    s_count = value2['shard-count']
+    if s_count >= 10:
+        return make_response(jsonify({}), 400)
 
 
 api.add_resource(Views, '/key-value-store-view')
