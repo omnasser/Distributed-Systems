@@ -1,0 +1,1 @@
+I created my very own ipv4 router for this assignment in which I also implemented my very own firewall using my own code in Python, the firewall would allow only certain types of traffic to pass through to the router and it would flood that traffic, but block all other types of traffic that I specified to not allow.
