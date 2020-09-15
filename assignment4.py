@@ -1,7 +1,7 @@
 #assignment4.py
 #Group: rsaefong@ucsc.edu, omnasser@ucsc.edu, dajli@ucsc.edu, rmjaureg@ucsc.edu
 
-#This project was a fault tolerant key value store system me and 3 other group members created that supports replication and data-partitioning as well.
+#This project was a fault tolerant key value store system me and 3 other group members created that supports replication and data-partitioning as well .
 
 from flask import Flask
 from flask import request, jsonify, make_response
